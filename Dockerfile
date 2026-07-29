@@ -20,5 +20,10 @@ COPY --from=build /workspace/target/third-ball-api-0.0.1-SNAPSHOT.jar app.jar
 USER thirdball
 EXPOSE 8080
 
+# Render's free instance has a small memory budget.  Keep heap, metaspace,
+# direct buffers, and thread stacks bounded so the kernel does not kill the
+# process while Spring and Hibernate initialize.
+ENV JAVA_TOOL_OPTIONS="-Xms64m -Xmx160m -XX:MaxMetaspaceSize=128m -XX:MaxDirectMemorySize=32m -Xss512k"
+
 # application-prod.properties reads Render's PORT at runtime.
 ENTRYPOINT ["sh", "-c", "exec java ${JAVA_OPTS:-} -jar /app/app.jar"]
