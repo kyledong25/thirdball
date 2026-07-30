@@ -3,10 +3,10 @@ import { api, errorMessage } from './api';
 import { addDays, byRating, formatDateTime, formatRange, toDateTimeInput, toIso } from './utils';
 
 const navigation = [
-  { id: 'dashboard', label: 'Overview' },
-  { id: 'players', label: 'Players & Ladder' },
+  { id: 'dashboard', label: 'Aggie Overview' },
+  { id: 'players', label: 'Aggie Ladder' },
   { id: 'tournaments', label: 'Tournaments' },
-  { id: 'practice', label: 'Practice Blocks' }
+  { id: 'practice', label: 'Practice Nights' }
 ];
 
 function App() {
@@ -79,11 +79,11 @@ function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="brand" aria-label="Third Ball home">
-          <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
+        <div className="brand" aria-label="TAMU Table Tennis Club home">
+          <span className="brand-mark" aria-hidden="true">TT</span>
           <div>
-            <p className="eyebrow">University Table Tennis Club</p>
-            <h1>Third Ball</h1>
+            <p className="eyebrow">Texas A&amp;M University · College Station</p>
+            <h1>TAMU Table Tennis</h1>
           </div>
         </div>
         <div className="topbar-actions">
@@ -109,8 +109,8 @@ function App() {
             ))}
           </nav>
           <div className="sidebar-note">
-            <strong>250+ members, one home court.</strong>
-            <p>Manage sessions, the club ladder, and every elimination match from one place.</p>
+            <strong>Gig 'em. Then serve.</strong>
+            <p>Run practice nights, the Aggie ladder, and every tournament bracket from one club desk.</p>
           </div>
         </aside>
 
@@ -158,8 +158,8 @@ function Dashboard({ players, tournaments, practiceSessions, onNavigate }) {
 
   return (
     <>
-      <PageIntro eyebrow="Club command center" title="Keep every rally moving.">
-        A simple operational view for a busy university club. Start with a player, a practice block, or the next tournament.
+      <PageIntro eyebrow="TAMU Table Tennis Club" title="The Aggie rally desk.">
+        Keep practices, the club ladder, and tournament play moving from one maroon-and-white home base.
       </PageIntro>
 
       <section className="stat-grid" aria-label="Club totals">
@@ -172,7 +172,7 @@ function Dashboard({ players, tournaments, practiceSessions, onNavigate }) {
         <article className="panel leader-panel">
           <div className="panel-heading">
             <div>
-              <p className="eyebrow">Internal USATT ladder</p>
+              <p className="eyebrow">Aggie USATT ladder</p>
               <h3>Top of the table</h3>
             </div>
             <button className="text-button" onClick={() => onNavigate('players')}>Manage ladder →</button>
@@ -243,8 +243,8 @@ function PlayersAndLadder({ players, actions }) {
   const orderedPlayers = byRating(players);
   return (
     <>
-      <PageIntro eyebrow="Membership & competition" title="Players and club ladder">
-        New members begin at 1200. Submit a result once and Third Ball applies the USATT point-exchange chart automatically.
+      <PageIntro eyebrow="Membership & competition" title="Players and the Aggie ladder">
+        New members begin at 1200. Submit a result once and the club applies the USATT point-exchange chart automatically.
       </PageIntro>
       <section className="two-column-layout">
         <PlayerForm onSubmit={actions.createPlayer} />
@@ -282,7 +282,7 @@ function PlayerForm({ onSubmit }) {
       <h3>Add a player</h3>
       <form onSubmit={submit}>
         <label>Full name<input required maxLength="100" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} placeholder="Jordan Patel" /></label>
-        <label>University email<input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="jordan@university.edu" /></label>
+        <label>Texas A&amp;M email<input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="jordan@tamu.edu" /></label>
         <button className="button button-primary" disabled={submitting}>{submitting ? 'Adding…' : 'Add to ladder'}</button>
       </form>
     </section>
