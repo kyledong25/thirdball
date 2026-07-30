@@ -61,7 +61,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 .nav-item:hover { background: #f2e9e5; color: var(--ink); }
 .nav-item.is-active { color: var(--blue); background: white; box-shadow: 0 2px 8px rgba(80, 0, 0, 0.08); }
 .nav-dot { width: 9px; height: 9px; border-radius: 50%; background: #cdbdb8; }
-.nav-dot-players { background: var(--blue); }.nav-dot-tournaments { background: var(--coral); }.nav-dot-practice { background: #b5753d; }.nav-dot-calendar { background: var(--green); }.nav-dot-dashboard { background: var(--ink); }
+.nav-dot-players { background: var(--blue); }.nav-dot-tournaments { background: var(--coral); }.nav-dot-practice { background: #b5753d; }.nav-dot-calendar { background: var(--green); }.nav-dot-dashboard { background: var(--ink); }.nav-dot-results { background: var(--coral); }
 .sidebar-note { margin-top: auto; padding: 18px 14px; background: linear-gradient(145deg, var(--blue), var(--blue-dark)); color: #fff; border-radius: 10px; }
 .sidebar-note strong { display: block; font-size: 0.83rem; line-height: 1.35; }.sidebar-note p { margin: 8px 0 0; font-size: 0.72rem; color: #f2deda; line-height: 1.55; }
 

@@ -11,6 +11,14 @@ const navigation = [
   { id: 'practice', label: 'Practice Nights' }
 ];
 
+const memberNavigation = [
+  { id: 'overview', label: 'My dashboard', tone: 'dashboard' },
+  { id: 'results', label: 'Report results', tone: 'results' },
+  { id: 'ladder', label: 'Global ladder', tone: 'players' },
+  { id: 'events', label: 'Events', tone: 'practice' },
+  { id: 'calendar', label: 'Club calendar', tone: 'calendar' }
+];
+
 function App() {
   const [account, setAccount] = useState(null);
   const [checkingAuthentication, setCheckingAuthentication] = useState(true);
@@ -234,6 +242,7 @@ function AuthenticationGate({ onAuthenticated }) {
 }
 
 function MemberApp({ account, onSignOut }) {
+  const [view, setView] = useState('overview');
   const [practiceSessions, setPracticeSessions] = useState([]);
   const [tournaments, setTournaments] = useState([]);
   const [profile, setProfile] = useState(null);
@@ -244,6 +253,8 @@ function MemberApp({ account, onSignOut }) {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
   const [signingUpFor, setSigningUpFor] = useState('');
+  const awaitingYourAgreement = matchResultRequests.filter((request) => request.status === 'PENDING'
+    && String(request.opponentId) === String(profile?.id)).length;
 
   const refreshEvents = useCallback(async () => {
     setLoading(true);
@@ -341,23 +352,61 @@ function MemberApp({ account, onSignOut }) {
           <button className="button button-quiet" onClick={onSignOut}>Sign out</button>
         </div>
       </header>
-      <main className="member-content">
-        {notice && <Notice notice={notice} onClose={() => setNotice(null)} />}
-        <PageIntro eyebrow="Member event desk" title="Your next time at the table.">
-          Browse upcoming practices and tournaments, then sign yourself up with one click.
-        </PageIntro>
-        <section className="member-insights">
-          <MemberProfile profile={profile} onSubmit={updateProfile} />
-          <RatingHistoryChart profile={profile} points={ratingHistory} />
-        </section>
-        <section className="member-events">
-          <EventSchedule title="Upcoming practices" events={practiceSessions} kind="practice" signingUpFor={signingUpFor} onSignUp={signUp} />
-          <EventSchedule title="Upcoming tournaments" events={tournaments} kind="tournament" signingUpFor={signingUpFor} onSignUp={signUp} />
-        </section>
-        <MemberMatchResultDesk profile={profile} players={ladder} requests={matchResultRequests} onPropose={proposeMatchResult} onRespond={respondToMatchResult} />
-        <MemberLadder players={ladder} currentPlayerId={profile?.id} />
-        <section className="member-calendar"><CalendarView events={calendarEvents} compact /></section>
-      </main>
+      <div className="workspace">
+        <aside className="sidebar" aria-label="Member navigation">
+          <nav>
+            {memberNavigation.map((item) => (
+              <button className={`nav-item ${view === item.id ? 'is-active' : ''}`} key={item.id} onClick={() => setView(item.id)}>
+                <span className={`nav-dot nav-dot-${item.tone}`} aria-hidden="true" />
+                {item.label}{item.id === 'results' && awaitingYourAgreement > 0 ? ` (${awaitingYourAgreement})` : ''}
+              </button>
+            ))}
+          </nav>
+          <div className="sidebar-note">
+            <strong>Agree, then rate.</strong>
+            <p>Member-submitted results stay pending until the named opponent confirms them.</p>
+          </div>
+        </aside>
+        <main className="member-content">
+          {notice && <Notice notice={notice} onClose={() => setNotice(null)} />}
+          {view === 'overview' && <>
+            <PageIntro eyebrow="Member dashboard" title="Your next time at the table.">
+              Keep your member details current, track your rating progress, and use the navigation to report ladder results.
+            </PageIntro>
+            <section className="member-insights">
+              <MemberProfile profile={profile} onSubmit={updateProfile} />
+              <RatingHistoryChart profile={profile} points={ratingHistory} />
+            </section>
+          </>}
+          {view === 'results' && <>
+            <PageIntro eyebrow="Member ladder match" title="Report and confirm results.">
+              Send a score to your opponent. It becomes an official USATT-rated match only after they agree.
+            </PageIntro>
+            <MemberMatchResultDesk profile={profile} players={ladder} requests={matchResultRequests} onPropose={proposeMatchResult} onRespond={respondToMatchResult} />
+          </>}
+          {view === 'ladder' && <>
+            <PageIntro eyebrow="Club competition" title="Global ladder">
+              View current club rankings. Administrators manage dues and ladder membership.
+            </PageIntro>
+            <MemberLadder players={ladder} currentPlayerId={profile?.id} />
+          </>}
+          {view === 'events' && <>
+            <PageIntro eyebrow="Member event desk" title="Upcoming club events.">
+              Browse practices and tournaments, then sign yourself up with one click.
+            </PageIntro>
+            <section className="member-events">
+              <EventSchedule title="Upcoming practices" events={practiceSessions} kind="practice" signingUpFor={signingUpFor} onSignUp={signUp} />
+              <EventSchedule title="Upcoming tournaments" events={tournaments} kind="tournament" signingUpFor={signingUpFor} onSignUp={signUp} />
+            </section>
+          </>}
+          {view === 'calendar' && <>
+            <PageIntro eyebrow="Club schedule" title="Global calendar">
+              See every upcoming practice and tournament in one place.
+            </PageIntro>
+            <CalendarView events={calendarEvents} compact />
+          </>}
+        </main>
+      </div>
     </div>
   );
 }
