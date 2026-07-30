@@ -21,6 +21,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class MatchService {
+    public static final int PROVISIONAL_MATCHES_REQUIRED = 5;
+
     private final MatchRepository matchRepository;
     private final PlayerRepository playerRepository;
     private final TournamentRepository tournamentRepository;
@@ -84,25 +86,28 @@ public class MatchService {
         Player playerOne = lowerIdPlayer.getId().equals(firstId) ? lowerIdPlayer : higherIdPlayer;
         Player playerTwo = lowerIdPlayer.getId().equals(secondId) ? lowerIdPlayer : higherIdPlayer;
 
+        if (!playerOne.isRatingEstablished() && !playerTwo.isRatingEstablished()) {
+            throw new ConflictException("An unrated player must complete provisional matches against a rated player");
+        }
+
         match.setPlayerOne(playerOne);
         match.setPlayerTwo(playerTwo);
-        match.setPlayerOneRatingBefore(playerOne.getRating());
-        match.setPlayerTwoRatingBefore(playerTwo.getRating());
+        match.setPlayerOneRatingBefore(playerOne.isRatingEstablished() ? playerOne.getRating() : null);
+        match.setPlayerTwoRatingBefore(playerTwo.isRatingEstablished() ? playerTwo.getRating() : null);
         match.setPlayerOneScore(request.getPlayerOneScore());
         match.setPlayerTwoScore(request.getPlayerTwoScore());
 
         boolean playerOneWon = request.getPlayerOneScore() > request.getPlayerTwoScore();
         Player winner = playerOneWon ? playerOne : playerTwo;
-        RatingCalculationService.RatingUpdate updatedRatings = ratingCalculationService.calculateRatingChange(
-                playerOne.getRating(), playerTwo.getRating(), playerOneWon);
-        playerOne.setRating(updatedRatings.getPlayer1Rating());
-        playerTwo.setRating(updatedRatings.getPlayer2Rating());
-
         match.setWinner(winner);
-        match.setPlayerOneRatingAfter(playerOne.getRating());
-        match.setPlayerTwoRatingAfter(playerTwo.getRating());
         match.setStatus(MatchStatus.COMPLETED);
         match.setCompletedAt(Instant.now());
+
+        if (playerOne.isRatingEstablished() && playerTwo.isRatingEstablished()) {
+            applyEstablishedRatingExchange(match, playerOne, playerTwo, playerOneWon);
+        } else {
+            recordProvisionalResult(match, playerOne, playerTwo);
+        }
 
         return MatchResponse.from(match);
     }
@@ -124,5 +129,58 @@ public class MatchService {
     private Player findPlayer(Long playerId) {
         return playerRepository.findById(playerId)
                 .orElseThrow(() -> new NotFoundException("Player " + playerId + " was not found"));
+    }
+
+    private void applyEstablishedRatingExchange(Match match, Player playerOne, Player playerTwo, boolean playerOneWon) {
+        RatingCalculationService.RatingUpdate updatedRatings = ratingCalculationService.calculateRatingChange(
+                playerOne.getRating(), playerTwo.getRating(), playerOneWon);
+        playerOne.setRating(updatedRatings.getPlayer1Rating());
+        playerTwo.setRating(updatedRatings.getPlayer2Rating());
+        match.setPlayerOneRatingAfter(playerOne.getRating());
+        match.setPlayerTwoRatingAfter(playerTwo.getRating());
+    }
+
+    /**
+     * Stores an unrated player's result without changing the rated opponent's
+     * rating. Once five results are available, the player receives a
+     * provisional starting rating and future matches use the zero-sum chart.
+     */
+    private void recordProvisionalResult(Match match, Player playerOne, Player playerTwo) {
+        Player provisionalPlayer = playerOne.isRatingEstablished() ? playerTwo : playerOne;
+        provisionalPlayer.setProvisionalMatchCount(provisionalPlayer.getProvisionalMatchCount() + 1);
+
+        match.setPlayerOneRatingAfter(playerOne.isRatingEstablished() ? playerOne.getRating() : null);
+        match.setPlayerTwoRatingAfter(playerTwo.isRatingEstablished() ? playerTwo.getRating() : null);
+
+        if (provisionalPlayer.getProvisionalMatchCount() < PROVISIONAL_MATCHES_REQUIRED) {
+            return;
+        }
+
+        int provisionalRating = ratingCalculationService.initializeProvisionalRating(
+                matchRepository.findCompletedForPlayer(provisionalPlayer.getId(), MatchStatus.COMPLETED).stream()
+                        .map(completedMatch -> provisionalResultFor(completedMatch, provisionalPlayer))
+                        .collect(Collectors.toList()));
+        provisionalPlayer.setRating(provisionalRating);
+        provisionalPlayer.setRatingEstablished(true);
+
+        if (provisionalPlayer.getId().equals(playerOne.getId())) {
+            match.setPlayerOneRatingAfter(provisionalRating);
+        } else {
+            match.setPlayerTwoRatingAfter(provisionalRating);
+        }
+    }
+
+    private RatingCalculationService.ProvisionalMatchResult provisionalResultFor(Match completedMatch,
+                                                                                  Player provisionalPlayer) {
+        boolean isPlayerOne = completedMatch.getPlayerOne().getId().equals(provisionalPlayer.getId());
+        Integer opponentRating = isPlayerOne
+                ? completedMatch.getPlayerTwoRatingBefore()
+                : completedMatch.getPlayerOneRatingBefore();
+        if (opponentRating == null) {
+            throw new ConflictException("Provisional results require a rated opponent");
+        }
+
+        boolean won = completedMatch.getWinner().getId().equals(provisionalPlayer.getId());
+        return new RatingCalculationService.ProvisionalMatchResult(opponentRating, won);
     }
 }

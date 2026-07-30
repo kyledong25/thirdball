@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, errorMessage } from './api';
 import clubLogo from './assets/tamu-table-tennis-club-logo.webp';
-import { addDays, byRating, formatDateTime, formatRange, toDateTimeInput, toIso } from './utils';
+import { addDays, byRating, formatDateTime, formatRange, isRatingEstablished, playerRatingLabel, toDateTimeInput, toIso } from './utils';
 
 const navigation = [
   { id: 'dashboard', label: 'Aggie Overview' },
@@ -187,7 +187,7 @@ function Dashboard({ players, tournaments, practiceSessions, onNavigate }) {
                   <span className={`rank rank-${index + 1}`}>{index + 1}</span>
                   <span className="avatar">{player.displayName.slice(0, 1).toUpperCase()}</span>
                   <strong>{player.displayName}</strong>
-                  <span>{player.rating}</span>
+                  <span>{playerRatingLabel(player)}</span>
                 </li>
               ))}
             </ol>
@@ -247,7 +247,7 @@ function PlayersAndLadder({ players, actions }) {
   return (
     <>
       <PageIntro eyebrow="Membership & competition" title="Players and the Aggie ladder">
-        New members begin at 1200. Submit a result once and the club applies the USATT point-exchange chart automatically.
+        New members begin unrated. After five matches against rated players, their provisional USATT rating is set; every later match uses the fixed 0–50 point exchange chart.
       </PageIntro>
       <section className="two-column-layout">
         <PlayerForm onSubmit={actions.createPlayer} />
@@ -286,7 +286,7 @@ function PlayerForm({ onSubmit }) {
       <form onSubmit={submit}>
         <label>Full name<input required maxLength="100" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} placeholder="Jordan Patel" /></label>
         <label>Texas A&amp;M email<input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="jordan@tamu.edu" /></label>
-        <button className="button button-primary" disabled={submitting}>{submitting ? 'Adding…' : 'Add to ladder'}</button>
+        <button className="button button-primary" disabled={submitting}>{submitting ? 'Adding…' : 'Add unrated player'}</button>
       </form>
     </section>
   );
@@ -334,13 +334,20 @@ function LadderMatchForm({ players, onSubmit }) {
 }
 
 function RatingResult({ result }) {
+  const hasProvisionalPlayer = result.playerOneRatingBefore == null || result.playerTwoRatingBefore == null;
+  const provisionalFinalized = (result.playerOneRatingBefore == null && result.playerOneRatingAfter != null)
+    || (result.playerTwoRatingBefore == null && result.playerTwoRatingAfter != null);
+
   return (
     <div className="rating-result">
       <strong>{result.winnerId === result.playerOneId ? result.playerOneName : result.playerTwoName} wins</strong>
       <div>
-        <span>{result.playerOneName}: {result.playerOneRatingBefore} → <b>{result.playerOneRatingAfter}</b></span>
-        <span>{result.playerTwoName}: {result.playerTwoRatingBefore} → <b>{result.playerTwoRatingAfter}</b></span>
+        <span>{result.playerOneName}: {result.playerOneRatingBefore ?? 'Unrated'} → <b>{result.playerOneRatingAfter ?? 'Unrated'}</b></span>
+        <span>{result.playerTwoName}: {result.playerTwoRatingBefore ?? 'Unrated'} → <b>{result.playerTwoRatingAfter ?? 'Unrated'}</b></span>
       </div>
+      {hasProvisionalPlayer && <p>{provisionalFinalized
+        ? 'Provisional rating finalized. Future matches now use the USATT exchange chart.'
+        : 'Provisional result recorded. A starting rating is calculated after five matches against rated players.'}</p>}
     </div>
   );
 }
@@ -356,7 +363,10 @@ function LadderTable({ players }) {
               <td><span className="rank rank-table">{index + 1}</span></td>
               <td><div className="player-cell"><span className="avatar">{player.displayName.slice(0, 1).toUpperCase()}</span><strong>{player.displayName}</strong></div></td>
               <td>{player.email}</td>
-              <td className="right rating-number">{player.rating}</td>
+              <td className="right rating-number">
+                {isRatingEstablished(player) ? player.rating : 'Unrated'}
+                {!isRatingEstablished(player) && <small>{player.provisionalMatchCount || 0}/5 matches</small>}
+              </td>
               <td><span className={`status-pill ${player.active ? 'status-active' : 'status-muted'}`}>{player.active ? 'Active' : 'Inactive'}</span></td>
             </tr>
           ))}
@@ -632,7 +642,7 @@ function PracticeCard({ session }) {
 }
 
 function PlayerSelect({ players, value, onChange, placeholder, required = false }) {
-  return <select required={required} value={value} onChange={(event) => onChange(event.target.value)}><option value="">{placeholder}</option>{players.map((player) => <option key={player.id} value={player.id}>{player.displayName} · {player.rating}</option>)}</select>;
+  return <select required={required} value={value} onChange={(event) => onChange(event.target.value)}><option value="">{placeholder}</option>{players.map((player) => <option key={player.id} value={player.id}>{player.displayName} · {playerRatingLabel(player)}</option>)}</select>;
 }
 
 function EmptyState({ text, compact = false }) {

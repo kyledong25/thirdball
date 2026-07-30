@@ -14,7 +14,7 @@ import java.time.Instant;
 @Entity
 @Table(name = "players")
 public class Player {
-    public static final int DEFAULT_RATING = 1200;
+    public static final int UNRATED_RATING = 0;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,7 +27,13 @@ public class Player {
     private String email;
 
     @Column(nullable = false)
-    private int rating = DEFAULT_RATING;
+    private int rating = UNRATED_RATING;
+
+    @Column(name = "rating_established", nullable = false)
+    private boolean ratingEstablished;
+
+    @Column(name = "provisional_match_count", nullable = false)
+    private int provisionalMatchCount;
 
     @Column(nullable = false)
     private boolean active = true;
@@ -60,6 +66,10 @@ public class Player {
     public void setEmail(String email) { this.email = email; }
     public int getRating() { return rating; }
     public void setRating(int rating) { this.rating = rating; }
+    public boolean isRatingEstablished() { return ratingEstablished; }
+    public void setRatingEstablished(boolean ratingEstablished) { this.ratingEstablished = ratingEstablished; }
+    public int getProvisionalMatchCount() { return provisionalMatchCount; }
+    public void setProvisionalMatchCount(int provisionalMatchCount) { this.provisionalMatchCount = provisionalMatchCount; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public Instant getCreatedAt() { return createdAt; }

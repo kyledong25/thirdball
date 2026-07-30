@@ -6,7 +6,7 @@
 
 ## Highlights
 
-- **USATT rating ladder:** New players start at 1200; every submitted result follows the USATT point-exchange chart and retains an audit trail of before/after ratings.
+- **USATT rating ladder:** New players complete a five-match provisional phase before receiving a rating; established-player results follow the fixed USATT point-exchange chart and retain an audit trail of before/after ratings.
 - **Tournament desk:** Create events, register players, place matches in rounds, record results, and view an always-current single-elimination bracket.
 - **Practice operations:** Publish single- or multi-day blocks, enforce capacity, and handle player registration.
 - **Built for a real club:** PostgreSQL transactions and pessimistic locks protect rating updates and capacity checks when many members act at once.
@@ -145,7 +145,7 @@ curl -X POST http://localhost:8080/api/matches/1/result \
 
 ## USATT rating behavior
 
-New players begin at 1200. On a completed match, Third Ball compares the two pre-match ratings and applies the official USATT point-exchange chart. A higher-rated player winning receives the expected-result value; a lower-rated player winning receives the upset value.
+For two established players, Third Ball compares their pre-match ratings and applies the fixed USATT point-exchange chart. A higher-rated player winning receives the expected-result value; a lower-rated player winning receives the upset value. The winner gains the listed amount and the loser loses the same amount, preserving the rating pool's total.
 
 | Rating spread | Higher-rated player wins | Lower-rated player wins |
 | --- | ---: | ---: |
@@ -161,7 +161,13 @@ New players begin at 1200. On a completed match, Third Ball compares the two pre
 | 213–237 | 1 | 45 |
 | 238+ | 0 | 50 |
 
-The winner gains the listed amount and the loser loses the same amount, except that a rating floors at zero. The service locks both player rows in a consistent order and the match row before applying the calculation, so concurrent score submissions cannot overwrite a rating change or score the same match twice.
+New players start **unrated**. Their first five completed results must be against an established player and do not alter that opponent's rating. After the fifth result, Third Ball sets the starting rating as follows:
+
+- Mixed record: midpoint of the highest-rated player defeated and the lowest-rated player lost to (rounded to the nearest whole rating point).
+- Undefeated: 250 points above the highest-rated player defeated.
+- Winless: 50 points below the lowest-rated player lost to.
+
+The newly established player uses the standard chart from their next match forward. The service locks both player rows in a consistent order and the match row before applying the calculation, so concurrent score submissions cannot overwrite a rating change or score the same match twice.
 
 ## Deployment checklist
 

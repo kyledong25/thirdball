@@ -8,6 +8,8 @@ public class PlayerResponse {
     private final String displayName;
     private final String email;
     private final int rating;
+    private final boolean ratingEstablished;
+    private final int provisionalMatchCount;
     private final boolean active;
     private final Instant createdAt;
 
@@ -16,6 +18,8 @@ public class PlayerResponse {
         displayName = player.getDisplayName();
         email = player.getEmail();
         rating = player.getRating();
+        ratingEstablished = player.isRatingEstablished();
+        provisionalMatchCount = player.getProvisionalMatchCount();
         active = player.isActive();
         createdAt = player.getCreatedAt();
     }
@@ -25,6 +29,8 @@ public class PlayerResponse {
     public String getDisplayName() { return displayName; }
     public String getEmail() { return email; }
     public int getRating() { return rating; }
+    public boolean isRatingEstablished() { return ratingEstablished; }
+    public int getProvisionalMatchCount() { return provisionalMatchCount; }
     public boolean isActive() { return active; }
     public Instant getCreatedAt() { return createdAt; }
 }

@@ -32,5 +32,18 @@ export function formatRange(start, end) {
 }
 
 export function byRating(players) {
-  return [...players].sort((a, b) => b.rating - a.rating);
+  return [...players].sort((a, b) => {
+    const establishedDifference = Number(isRatingEstablished(b)) - Number(isRatingEstablished(a));
+    return establishedDifference || b.rating - a.rating;
+  });
+}
+
+export function isRatingEstablished(player) {
+  return player.ratingEstablished !== false;
+}
+
+export function playerRatingLabel(player) {
+  return isRatingEstablished(player)
+    ? String(player.rating)
+    : `Unrated · ${player.provisionalMatchCount || 0}/5 matches`;
 }
