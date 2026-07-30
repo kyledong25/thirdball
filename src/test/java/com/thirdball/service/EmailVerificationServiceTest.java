@@ -17,6 +17,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 
 class EmailVerificationServiceTest {
 
@@ -25,7 +26,7 @@ class EmailVerificationServiceTest {
         JavaMailSender mailSender = mock(JavaMailSender.class);
         BrevoEmailClient brevoEmailClient = mock(BrevoEmailClient.class);
         EmailVerificationService service = new EmailVerificationService(mailSender, brevoEmailClient,
-                new BCryptPasswordEncoder(), "no-reply@tabletennis.tamu.edu", 15, 60);
+                new BCryptPasswordEncoder(), "no-reply@tabletennis.tamu.edu", "", 15, 60);
         ClubUser user = new ClubUser();
         user.setEmail("member@tamu.edu");
 
@@ -46,7 +47,7 @@ class EmailVerificationServiceTest {
         BrevoEmailClient brevoEmailClient = mock(BrevoEmailClient.class);
         when(brevoEmailClient.isConfigured()).thenReturn(true);
         EmailVerificationService service = new EmailVerificationService(mailSender, brevoEmailClient,
-                new BCryptPasswordEncoder(), "no-reply@tabletennis.tamu.edu", 15, 60);
+                new BCryptPasswordEncoder(), "no-reply@tabletennis.tamu.edu", "", 15, 60);
         ClubUser user = new ClubUser();
         user.setEmail("member@tamu.edu");
 
@@ -54,5 +55,21 @@ class EmailVerificationServiceTest {
 
         verify(brevoEmailClient).sendPlainText(anyString(), anyString(), anyString(), anyString());
         verifyNoInteractions(mailSender);
+    }
+
+    @Test
+    void usesTheSmtpUsernameWhenMailFromIsBlank() {
+        JavaMailSender mailSender = mock(JavaMailSender.class);
+        BrevoEmailClient brevoEmailClient = mock(BrevoEmailClient.class);
+        when(brevoEmailClient.isConfigured()).thenReturn(true);
+        EmailVerificationService service = new EmailVerificationService(mailSender, brevoEmailClient,
+                new BCryptPasswordEncoder(), "", "verified-sender@tabletennis.tamu.edu", 15, 60);
+        ClubUser user = new ClubUser();
+        user.setEmail("member@tamu.edu");
+
+        service.issueCode(user);
+
+        verify(brevoEmailClient).sendPlainText(eq("verified-sender@tabletennis.tamu.edu"),
+                anyString(), anyString(), anyString());
     }
 }

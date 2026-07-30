@@ -8,6 +8,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -30,12 +31,16 @@ public class EmailVerificationService {
                                     BrevoEmailClient brevoEmailClient,
                                     PasswordEncoder passwordEncoder,
                                     @Value("${app.email.from}") String fromAddress,
+                                    @Value("${spring.mail.username:}") String mailUsername,
                                     @Value("${app.email.verification.code-expiration-minutes}") long expirationMinutes,
                                     @Value("${app.email.verification.resend-cooldown-seconds}") long resendCooldownSeconds) {
         this.mailSender = mailSender;
         this.brevoEmailClient = brevoEmailClient;
         this.passwordEncoder = passwordEncoder;
-        this.fromAddress = fromAddress;
+        // MAIL_FROM is the explicit production setting. The SMTP username is
+        // a safe compatibility fallback for existing Brevo configurations,
+        // where it is also a verified sender address.
+        this.fromAddress = StringUtils.hasText(fromAddress) ? fromAddress : mailUsername;
         this.expirationMinutes = expirationMinutes;
         this.resendCooldownSeconds = resendCooldownSeconds;
     }
