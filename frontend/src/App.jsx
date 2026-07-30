@@ -203,7 +203,7 @@ function AuthenticationGate({ onAuthenticated }) {
         <form onSubmit={submit}>
           {mode === 'register' && <label>Full name<input required maxLength="100" value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} /></label>}
           <label>Email<input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
-          <label>Password<input required type="password" minLength="12" maxLength="72" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /></label>
+          <label>Password<input required type="password" maxLength="72" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /></label>
           <button className="button button-primary" disabled={submitting}>{submitting ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create member account'}</button>
         </form>
         <button className="text-button auth-switch" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>

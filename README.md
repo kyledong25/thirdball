@@ -197,7 +197,7 @@ Third Ball is configured for a Supabase + Render + Vercel deployment. No databas
    DB_USERNAME=<supabase-connection-user>
    DB_PASSWORD=<supabase-database-password>
    BOOTSTRAP_ADMIN_EMAIL=<administrator-email>
-   BOOTSTRAP_ADMIN_PASSWORD=<administrator-password-at-least-12-characters>
+   BOOTSTRAP_ADMIN_PASSWORD=<administrator-password>
    CORS_ALLOWED_ORIGINS=https://<your-vercel-project>.vercel.app
    ```
 

@@ -12,7 +12,7 @@ public class RegisterMemberRequest {
     @NotBlank @Email @Size(max = 255)
     private String email;
 
-    @NotBlank @Size(min = 12, max = 72)
+    @NotBlank @Size(max = 72)
     private String password;
 
     public String getDisplayName() { return displayName; }
