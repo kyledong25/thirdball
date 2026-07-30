@@ -174,13 +174,11 @@ The newly established player uses the standard chart from their next match forwa
 
 ## Role-based access control
 
-Flyway migration `V6` adds a `club_users` account table with a unique email, BCrypt password hash, `ADMIN` or `MEMBER` role, and an optional one-to-one link to `players`. Existing player records are retained unchanged. Member registration reuses a matching player email when one exists, or creates a new unrated player record. Migration `V10` adds email verification: new member accounts receive a six-digit, hashed code that expires after 15 minutes and cannot sign in until the code is accepted. Accounts that existed before this migration remain verified.
+Flyway migration `V6` adds a `club_users` account table with a unique email, BCrypt password hash, `ADMIN` or `MEMBER` role, and an optional one-to-one link to `players`. Existing player records are retained unchanged. Member registration reuses a matching player email when one exists, or creates a new unrated player record. New members can sign in immediately after creating their account.
 
 | Route | Role | Purpose |
 | --- | --- | --- |
-| `POST /api/auth/register` | Public | Create a pending MEMBER account and email a six-digit verification code. |
-| `POST /api/auth/verify-email` | Public | Finalize signup with the email address and verification code. |
-| `POST /api/auth/resend-verification` | Public | Request a new code for an unverified account (rate-limited). |
+| `POST /api/auth/register` | Public | Create a MEMBER account that can sign in immediately. |
 | `GET /api/auth/me` | Authenticated | Return the current account and role. |
 | `GET /api/member/practice-sessions` | MEMBER | List upcoming practice sessions. |
 | `GET /api/member/tournaments` | MEMBER | List upcoming tournaments. |
@@ -217,11 +215,9 @@ Third Ball is configured for a Supabase + Render + Vercel deployment. No databas
    BOOTSTRAP_ADMIN_EMAIL=<administrator-email>
    BOOTSTRAP_ADMIN_PASSWORD=<administrator-password>
    CORS_ALLOWED_ORIGINS=https://<your-vercel-project>.vercel.app
-   BREVO_API_KEY=<Brevo API key>
-   MAIL_FROM=no-reply@<your-verified-sending-domain>
    ```
 
-   Get the hostname, connection user, and password from Supabase **Connect**. Use the Session pooler if Render cannot reach the direct connection; convert Supabase's `postgresql://` URI to `jdbc:postgresql://` for `DB_URL`, keeping `sslmode=require`. On Render's free plan, set `BREVO_API_KEY` and a Brevo-verified `MAIL_FROM`; Third Ball then sends verification email over Brevo's HTTPS API rather than blocked SMTP ports. Render supplies `PORT`; [`application-prod.properties`](src/main/resources/application-prod.properties) reads it automatically. The `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, and `MAIL_PASSWORD` variables are retained only for local or paid-host SMTP fallback. Optional values are `MAIL_SMTP_AUTH`, `MAIL_STARTTLS_ENABLED`, `EMAIL_VERIFICATION_CODE_EXPIRATION_MINUTES` (default `15`), and `EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS` (default `60`).
+   Get the hostname, connection user, and password from Supabase **Connect**. Use the Session pooler if Render cannot reach the direct connection; convert Supabase's `postgresql://` URI to `jdbc:postgresql://` for `DB_URL`, keeping `sslmode=require`. Render supplies `PORT`; [`application-prod.properties`](src/main/resources/application-prod.properties) reads it automatically. Account registration does not send email, so Brevo and `MAIL_*` variables are not required.
 
 2. On Vercel, set the project root to `frontend`, build with `npm run build`, publish `dist`, and add this build-time environment variable:
 

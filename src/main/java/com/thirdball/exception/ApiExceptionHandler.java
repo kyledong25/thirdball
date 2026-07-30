@@ -26,11 +26,6 @@ public class ApiExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
-    @ExceptionHandler(EmailDeliveryException.class)
-    public ResponseEntity<Map<String, String>> emailDelivery(EmailDeliveryException ex) {
-        return error(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
-    }
-
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> validation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()

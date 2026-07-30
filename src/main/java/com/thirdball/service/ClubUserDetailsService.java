@@ -24,7 +24,7 @@ public class ClubUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         ClubUser user = clubUserRepository.findByEmail(email.trim().toLowerCase(java.util.Locale.ROOT))
                 .orElseThrow(() -> new UsernameNotFoundException("Account was not found"));
-        return new User(user.getEmail(), user.getPasswordHash(), user.isEmailVerified(), true, true, true,
+        return new User(user.getEmail(), user.getPasswordHash(), true, true, true, true,
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())));
     }
 }

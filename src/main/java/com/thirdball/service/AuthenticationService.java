@@ -2,10 +2,7 @@ package com.thirdball.service;
 
 import com.thirdball.api.request.RegisterMemberRequest;
 import com.thirdball.api.request.UpdateMemberProfileRequest;
-import com.thirdball.api.request.VerificationEmailRequest;
-import com.thirdball.api.request.VerifyEmailRequest;
 import com.thirdball.api.response.AuthenticatedUserResponse;
-import com.thirdball.api.response.EmailVerificationPendingResponse;
 import com.thirdball.api.response.PlayerResponse;
 import com.thirdball.domain.ClubRole;
 import com.thirdball.domain.ClubUser;
@@ -20,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
-import java.time.Instant;
 
 /** Creates member accounts and resolves the authenticated account's player. */
 @Service
@@ -28,18 +24,16 @@ public class AuthenticationService {
     private final ClubUserRepository clubUserRepository;
     private final PlayerRepository playerRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailVerificationService emailVerificationService;
 
     public AuthenticationService(ClubUserRepository clubUserRepository, PlayerRepository playerRepository,
-                                 PasswordEncoder passwordEncoder, EmailVerificationService emailVerificationService) {
+                                 PasswordEncoder passwordEncoder) {
         this.clubUserRepository = clubUserRepository;
         this.playerRepository = playerRepository;
         this.passwordEncoder = passwordEncoder;
-        this.emailVerificationService = emailVerificationService;
     }
 
     @Transactional
-    public EmailVerificationPendingResponse registerMember(RegisterMemberRequest request) {
+    public AuthenticatedUserResponse registerMember(RegisterMemberRequest request) {
         String email = normalizeEmail(request.getEmail());
         if (clubUserRepository.findByEmail(email).isPresent()) {
             throw new ConflictException("An account with that email already exists");
@@ -60,36 +54,8 @@ public class AuthenticationService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setRole(ClubRole.MEMBER);
         user.setPlayer(player);
-        user.setEmailVerified(false);
         ClubUser savedUser = clubUserRepository.save(user);
-        emailVerificationService.issueCode(savedUser);
-        return EmailVerificationPendingResponse.from(savedUser);
-    }
-
-    @Transactional
-    public AuthenticatedUserResponse verifyEmail(VerifyEmailRequest request) {
-        ClubUser user = clubUserRepository.findByEmail(normalizeEmail(request.getEmail()))
-                .orElseThrow(() -> new IllegalArgumentException("Invalid email verification code"));
-        if (user.isEmailVerified()) {
-            return AuthenticatedUserResponse.from(user);
-        }
-        if (!emailVerificationService.matchesActiveCode(user, request.getCode())) {
-            throw new IllegalArgumentException("That verification code is invalid or has expired");
-        }
-
-        user.setEmailVerified(true);
-        user.setEmailVerifiedAt(Instant.now());
-        user.setEmailVerificationCodeHash(null);
-        user.setEmailVerificationCodeExpiresAt(null);
-        user.setEmailVerificationCodeSentAt(null);
-        return AuthenticatedUserResponse.from(user);
-    }
-
-    @Transactional
-    public void resendVerificationCode(VerificationEmailRequest request) {
-        clubUserRepository.findByEmail(normalizeEmail(request.getEmail()))
-                .filter(user -> !user.isEmailVerified())
-                .ifPresent(emailVerificationService::issueCodeWhenAllowed);
+        return AuthenticatedUserResponse.from(savedUser);
     }
 
     @Transactional(readOnly = true)

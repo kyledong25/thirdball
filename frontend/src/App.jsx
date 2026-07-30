@@ -232,47 +232,24 @@ function AdminApp({ account, onSignOut }) {
 
 function AuthenticationGate({ onAuthenticated }) {
   const [mode, setMode] = useState('login');
-  const [registrationStep, setRegistrationStep] = useState('details');
   const [form, setForm] = useState({ displayName: '', email: '', password: '' });
-  const [verification, setVerification] = useState({ email: '', code: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
 
   function changeMode(nextMode) {
     setMode(nextMode);
-    setRegistrationStep('details');
     setError('');
-    setInfo('');
-  }
-
-  function openVerification() {
-    setVerification({ email: form.email || verification.email, code: '' });
-    setMode('register');
-    setRegistrationStep('verify');
-    setError('');
-    setInfo('');
   }
 
   async function submit(event) {
     event.preventDefault();
     setSubmitting(true);
     setError('');
-    setInfo('');
     try {
-      if (mode === 'register' && registrationStep === 'details') {
-        const pendingAccount = await api.registerMember(form);
-        setVerification({ email: pendingAccount.email, code: '' });
-        setRegistrationStep('verify');
-        setInfo(`We sent a six-digit verification code to ${pendingAccount.email}.`);
-        return;
-      }
-      if (mode === 'register' && registrationStep === 'verify') {
-        await api.verifyEmail(verification);
-        setForm({ displayName: '', email: verification.email, password: '' });
-        setMode('login');
-        setRegistrationStep('details');
-        setInfo('Email verified. Sign in with your new account to finish.');
+      if (mode === 'register') {
+        await api.registerMember(form);
+        const account = await api.login(form.email, form.password);
+        onAuthenticated(account);
         return;
       }
       const account = await api.login(form.email, form.password);
@@ -284,32 +261,11 @@ function AuthenticationGate({ onAuthenticated }) {
     }
   }
 
-  async function resendVerification() {
-    if (!verification.email) {
-      setError('Enter the email address used to create your account first.');
-      return;
-    }
-    setSubmitting(true);
-    setError('');
-    setInfo('');
-    try {
-      await api.resendEmailVerification({ email: verification.email });
-      setInfo('If that account still needs verification, a fresh code is on its way.');
-    } catch (requestError) {
-      setError(errorMessage(requestError));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   const isLogin = mode === 'login';
-  const isVerification = mode === 'register' && registrationStep === 'verify';
   const heading = isLogin ? 'Sign in to your club view' : 'Create your member account';
   const description = isLogin
     ? 'Administrators enter the club operations desk. Members see their upcoming events and personal sign-up actions.'
-    : isVerification
-      ? 'Enter the six-digit code sent to your inbox. Your account cannot sign in until its email address is verified.'
-      : 'New accounts are created as members and linked to your club player record.';
+    : 'New accounts are created as members, linked to your club player record, and signed in immediately.';
 
   return (
     <main className="auth-shell">
@@ -322,32 +278,16 @@ function AuthenticationGate({ onAuthenticated }) {
         <h2>{heading}</h2>
         <p>{description}</p>
         {error && <div className="inline-error">{error}</div>}
-        {info && <div className="inline-success">{info}</div>}
         <form onSubmit={submit}>
-          {mode === 'register' && !isVerification && <label>Full name<input required maxLength="100" value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} /></label>}
-          {isVerification ? <>
-            <label>Email<input required type="email" value={verification.email} onChange={(event) => setVerification({ ...verification, email: event.target.value })} /></label>
-            <label>Verification code<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" placeholder="123456" value={verification.code} onChange={(event) => setVerification({ ...verification, code: event.target.value.replace(/\D/g, '') })} /></label>
-          </> : <>
-            <label>Email<input required type="email" autoComplete="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
-            <label>Password<input required type="password" autoComplete={isLogin ? 'current-password' : 'new-password'} maxLength="72" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /></label>
-          </>}
-          <button className="button button-primary" disabled={submitting}>{submitting ? 'Working…' : isLogin ? 'Sign in' : isVerification ? 'Verify email' : 'Create member account'}</button>
+          {mode === 'register' && <label>Full name<input required maxLength="100" value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} /></label>}
+          <label>Email<input required type="email" autoComplete="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
+          <label>Password<input required type="password" autoComplete={isLogin ? 'current-password' : 'new-password'} maxLength="72" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /></label>
+          <button className="button button-primary" disabled={submitting}>{submitting ? 'Working…' : isLogin ? 'Sign in' : 'Create member account'}</button>
         </form>
         <div className="auth-secondary-actions">
-          {isLogin && <>
-            <button className="text-button" onClick={() => changeMode('register')}>Need a member account? Register →</button>
-            <button className="text-button" onClick={openVerification}>Finish email verification →</button>
-          </>}
-          {mode === 'register' && !isVerification && <>
-            <button className="text-button" onClick={() => changeMode('login')}>Already have an account? Sign in →</button>
-            <button className="text-button" onClick={openVerification}>Already have a code? Verify email →</button>
-          </>}
-          {isVerification && <>
-            <button className="text-button" disabled={submitting} onClick={resendVerification}>Resend verification code</button>
-            <button className="text-button" onClick={() => { setRegistrationStep('details'); setError(''); setInfo(''); }}>Back to registration details</button>
-            <button className="text-button" onClick={() => changeMode('login')}>Back to sign in</button>
-          </>}
+          {isLogin
+            ? <button className="text-button" onClick={() => changeMode('register')}>Need a member account? Register →</button>
+            : <button className="text-button" onClick={() => changeMode('login')}>Already have an account? Sign in →</button>}
         </div>
       </section>
     </main>
