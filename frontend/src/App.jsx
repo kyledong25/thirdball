@@ -19,6 +19,29 @@ const memberNavigation = [
   { id: 'calendar', label: 'Club calendar', tone: 'calendar' }
 ];
 
+const memberSidebarNotes = {
+  overview: {
+    title: 'Keep your edge.',
+    text: 'Update your member details and follow your ladder progress after every official result.'
+  },
+  results: {
+    title: 'Agree, then rate.',
+    text: 'Member-submitted results stay pending until the named opponent confirms them.'
+  },
+  ladder: {
+    title: 'Climb the ladder.',
+    text: 'Rankings update after confirmed TAMU TTC rated matches are recorded.'
+  },
+  events: {
+    title: 'See you at the table.',
+    text: 'Sign up for practices and tournaments so the club can plan every session.'
+  },
+  calendar: {
+    title: 'Plan your next rally.',
+    text: 'Use the club calendar to keep practices and tournaments on your schedule.'
+  }
+};
+
 function App() {
   const [account, setAccount] = useState(null);
   const [checkingAuthentication, setCheckingAuthentication] = useState(true);
@@ -253,6 +276,7 @@ function MemberApp({ account, onSignOut }) {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
   const [signingUpFor, setSigningUpFor] = useState('');
+  const sidebarNote = memberSidebarNotes[view];
   const awaitingYourAgreement = matchResultRequests.filter((request) => request.status === 'PENDING'
     && String(request.opponentId) === String(profile?.id)).length;
 
@@ -363,8 +387,8 @@ function MemberApp({ account, onSignOut }) {
             ))}
           </nav>
           <div className="sidebar-note">
-            <strong>Agree, then rate.</strong>
-            <p>Member-submitted results stay pending until the named opponent confirms them.</p>
+            <strong>{sidebarNote.title}</strong>
+            <p>{sidebarNote.text}</p>
           </div>
         </aside>
         <main className="member-content">
