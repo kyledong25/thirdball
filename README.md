@@ -2,13 +2,16 @@
 
 > A full-stack operations hub for a university table tennis club: manage 250+ members, maintain an internal USATT-style rating ladder, run tournaments, and coordinate practice blocks.
 
-![Third Ball tournament bracket](docs/screenshots/tournament-bracket.png)
+| Administrator operations desk | Member self-service dashboard |
+| --- | --- |
+| ![Third Ball administrator dashboard](docs/screenshots/admin-dashboard.svg) | ![Third Ball member dashboard](docs/screenshots/member-dashboard.svg) |
 
 ## Highlights
 
 - **USATT rating ladder:** New players complete a five-match provisional phase before receiving a rating; established-player results follow the fixed USATT point-exchange chart, retain before/after ratings, and can be safely invalidated by an administrator.
-- **Tournament desk:** Create events, register players, place matches in rounds, record results, and view an always-current single-elimination bracket.
-- **Practice operations:** Publish single- or multi-day blocks, enforce capacity, and handle player registration.
+- **Role-based dashboards:** Administrators manage the ladder, dues, events, generated brackets, and result review; members maintain their own profile, view rating progress, and sign up for club events.
+- **Tournament desk:** Register the field, generate a rating-seeded single-elimination bracket with automatic byes, record results, and advance winners automatically.
+- **Practice operations and global calendar:** Publish single- or multi-day blocks, enforce capacity, and show one combined schedule of practices and tournaments.
 - **Built for a real club:** PostgreSQL transactions and pessimistic locks protect rating updates and capacity checks when many members act at once.
 
 ## Stack
@@ -57,8 +60,8 @@ npm run dev
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173). The frontend covers:
 
 - player creation, USATT ladder rankings, and ladder-result submission;
-- tournament creation, player registration, match placement, result entry, and round-based bracket visualization;
-- multi-day practice-block publishing, capacities, and member registration.
+- tournament creation, player registration, rating-seeded bracket generation, result entry, and round-based bracket visualization;
+- multi-day practice-block publishing, capacities, member registration, a global calendar, dues tracking, and member rating-history charts.
 
 Build a production bundle with `npm run build` from `frontend`.
 
@@ -179,11 +182,15 @@ Flyway migration `V6` adds a `club_users` account table with a unique email, BCr
 | `GET /api/auth/me` | Authenticated | Return the current account and role. |
 | `GET /api/member/practice-sessions` | MEMBER | List upcoming practice sessions. |
 | `GET /api/member/tournaments` | MEMBER | List upcoming tournaments. |
+| `GET /api/member/profile` / `PUT /api/member/profile` | MEMBER | Read or update graduation year, skill level, and phone number. |
+| `GET /api/member/rating-history` | MEMBER | Read the member's chart-ready rating series from completed result snapshots. |
 | `POST /api/member/practice-sessions/{id}/signup` | MEMBER | Register the authenticated member for practice. |
 | `POST /api/member/tournaments/{id}/signup` | MEMBER | Register the authenticated member for a tournament. |
 | `PUT /api/players/{id}/rating` | ADMIN | Correct a player's rating and mark them established. |
+| `PUT /api/players/{id}/dues` | ADMIN | Mark a member's dues paid or unpaid. |
 | `POST /api/players/{id}/remove-from-ladder` | ADMIN | Soft-remove a player from active ladder and event operations while retaining history. |
 | `POST /api/matches/{id}/invalidate` | ADMIN | Cancel the newest completed result for its players and restore their pre-match ratings. |
+| `POST /api/tournaments/{id}/generate-bracket` | ADMIN | Lock registration and build a rating-seeded single-elimination tree. |
 | Existing `/api/players`, `/api/matches`, `/api/tournaments`, and `/api/practice-sessions` routes | ADMIN | Club operations dashboard. |
 
 The web client uses HTTP Basic authentication over the existing HTTPS deployment and keeps the authorization value only in browser session storage. Configure the first administrator through Render's environment variables before deploying. After the first `ADMIN` account is created, the bootstrap password is ignored.
@@ -215,6 +222,6 @@ Third Ball is configured for a Supabase + Render + Vercel deployment. No databas
 
 3. After both deploys, update Render's `CORS_ALLOWED_ORIGINS` with the exact Vercel origin (no path or trailing slash), redeploy the backend, and confirm the backend startup log says Flyway is up to date.
 
-## Current roadmap
+## Current capabilities
 
-The current tournament desk supports manual match placement and live bracket visualization. The next backend enhancement is automatic bracket generation: seed the registered field into a power-of-two tree (with byes) and promote each winner to its `nextMatch` automatically.
+The generated tournament bracket seeds established members by rating, places unrated members after them, creates the smallest power-of-two tree, and automatically advances opening-round byes and later winners. The member rating-history chart deliberately uses only completed-match rating snapshots; direct administrator corrections remain visible in the current rating but are not fabricated into historical match points.

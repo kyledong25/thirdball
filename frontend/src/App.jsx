@@ -237,6 +237,7 @@ function MemberApp({ account, onSignOut }) {
   const [practiceSessions, setPracticeSessions] = useState([]);
   const [tournaments, setTournaments] = useState([]);
   const [profile, setProfile] = useState(null);
+  const [ratingHistory, setRatingHistory] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
@@ -245,15 +246,17 @@ function MemberApp({ account, onSignOut }) {
   const refreshEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextPracticeSessions, nextTournaments, nextProfile, nextCalendarEvents] = await Promise.all([
+      const [nextPracticeSessions, nextTournaments, nextProfile, nextRatingHistory, nextCalendarEvents] = await Promise.all([
         api.listMemberPracticeSessions(),
         api.listMemberTournaments(),
         api.getMemberProfile(),
+        api.getMemberRatingHistory(),
         api.listCalendar()
       ]);
       setPracticeSessions(nextPracticeSessions);
       setTournaments(nextTournaments);
       setProfile(nextProfile);
+      setRatingHistory(nextRatingHistory);
       setCalendarEvents(nextCalendarEvents);
     } catch (error) {
       setNotice({ type: 'error', text: errorMessage(error) });
@@ -309,14 +312,15 @@ function MemberApp({ account, onSignOut }) {
         <PageIntro eyebrow="Member event desk" title="Your next time at the table.">
           Browse upcoming practices and tournaments, then sign yourself up with one click.
         </PageIntro>
+        <section className="member-insights">
+          <MemberProfile profile={profile} onSubmit={updateProfile} />
+          <RatingHistoryChart profile={profile} points={ratingHistory} />
+        </section>
         <section className="member-events">
           <EventSchedule title="Upcoming practices" events={practiceSessions} kind="practice" signingUpFor={signingUpFor} onSignUp={signUp} />
           <EventSchedule title="Upcoming tournaments" events={tournaments} kind="tournament" signingUpFor={signingUpFor} onSignUp={signUp} />
         </section>
-        <section className="member-profile-layout">
-          <MemberProfile profile={profile} onSubmit={updateProfile} />
-          <CalendarView events={calendarEvents} compact />
-        </section>
+        <section className="member-calendar"><CalendarView events={calendarEvents} compact /></section>
       </main>
     </div>
   );
@@ -362,6 +366,54 @@ function MemberProfile({ profile, onSubmit }) {
         <label>Phone<input type="tel" maxLength="30" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="(979) 555-0123" /></label>
         <button className="button button-secondary" disabled={submitting}>{submitting ? 'Saving…' : 'Save profile'}</button>
       </form>
+    </section>
+  );
+}
+
+function RatingHistoryChart({ profile, points }) {
+  const series = useMemo(() => points.filter((point) => Number.isFinite(point.rating)), [points]);
+  const currentRating = profile && isRatingEstablished(profile) ? profile.rating : null;
+  const chart = useMemo(() => {
+    if (!series.length) return null;
+    const width = 560;
+    const height = 190;
+    const padding = { top: 20, right: 20, bottom: 31, left: 42 };
+    const ratings = series.map((point) => point.rating);
+    const low = Math.min(...ratings);
+    const high = Math.max(...ratings);
+    const range = Math.max(20, high - low);
+    const minimum = low - Math.ceil(range * 0.2);
+    const maximum = high + Math.ceil(range * 0.2);
+    const innerWidth = width - padding.left - padding.right;
+    const innerHeight = height - padding.top - padding.bottom;
+    const coordinates = series.map((point, index) => ({
+      ...point,
+      x: padding.left + (series.length === 1 ? innerWidth / 2 : (index / (series.length - 1)) * innerWidth),
+      y: padding.top + ((maximum - point.rating) / (maximum - minimum)) * innerHeight
+    }));
+    return { width, height, padding, minimum, maximum, coordinates };
+  }, [series]);
+
+  return (
+    <section className="panel rating-history-panel">
+      <div className="panel-heading">
+        <div><p className="eyebrow">Member rating history</p><h3>My ladder progress</h3></div>
+        <span className="rating-current">{currentRating ?? 'Unrated'}</span>
+      </div>
+      {chart ? <>
+        <svg className="rating-chart" viewBox={`0 0 ${chart.width} ${chart.height}`} role="img" aria-label="Your rating history line chart">
+          {[0, 0.5, 1].map((position) => {
+            const y = chart.padding.top + position * (chart.height - chart.padding.top - chart.padding.bottom);
+            const rating = Math.round(chart.maximum - position * (chart.maximum - chart.minimum));
+            return <g key={position}><line x1={chart.padding.left} x2={chart.width - chart.padding.right} y1={y} y2={y} className="rating-grid-line" /><text x="0" y={y + 4} className="rating-axis-label">{rating}</text></g>;
+          })}
+          {chart.coordinates.length > 1 && <polyline points={chart.coordinates.map((point) => `${point.x},${point.y}`).join(' ')} className="rating-chart-line" />}
+          {chart.coordinates.map((point, index) => <g key={`${point.matchId}-${index}`}><circle cx={point.x} cy={point.y} r="4.5" className={point.baseline ? 'rating-chart-dot is-baseline' : point.won ? 'rating-chart-dot is-win' : 'rating-chart-dot is-loss'} /><title>{point.baseline ? `Started at ${point.rating}` : `${point.won ? 'Won' : 'Lost'} vs ${point.opponentName}: ${point.rating}`}</title></g>)}
+          <text x={chart.padding.left} y={chart.height - 7} className="rating-axis-label">{formatDateTime(series[0].occurredAt).split(',')[0]}</text>
+          {series.length > 1 && <text x={chart.width - chart.padding.right} y={chart.height - 7} textAnchor="end" className="rating-axis-label">{formatDateTime(series[series.length - 1].occurredAt).split(',')[0]}</text>}
+        </svg>
+        <div className="rating-history-key"><span><i className="is-win" />Win</span><span><i className="is-loss" />Loss</span><span><i className="is-baseline" />Starting point</span></div>
+      </> : <div className="rating-history-empty"><strong>{currentRating ?? 'Unrated'}</strong><p>Completed rated matches will build your progress chart here.</p></div>}
     </section>
   );
 }

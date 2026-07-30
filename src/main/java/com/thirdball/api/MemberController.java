@@ -2,11 +2,13 @@ package com.thirdball.api;
 
 import com.thirdball.api.response.PracticeSessionResponse;
 import com.thirdball.api.response.PlayerResponse;
+import com.thirdball.api.response.RatingHistoryPointResponse;
 import com.thirdball.api.response.TournamentResponse;
 import com.thirdball.api.request.UpdateMemberProfileRequest;
 import com.thirdball.domain.Player;
 import com.thirdball.service.AuthenticationService;
 import com.thirdball.service.PracticeSessionService;
+import com.thirdball.service.MemberRatingHistoryService;
 import com.thirdball.service.TournamentService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -29,13 +31,16 @@ public class MemberController {
     private final AuthenticationService authenticationService;
     private final PracticeSessionService practiceSessionService;
     private final TournamentService tournamentService;
+    private final MemberRatingHistoryService memberRatingHistoryService;
 
     public MemberController(AuthenticationService authenticationService,
                             PracticeSessionService practiceSessionService,
-                            TournamentService tournamentService) {
+                            TournamentService tournamentService,
+                            MemberRatingHistoryService memberRatingHistoryService) {
         this.authenticationService = authenticationService;
         this.practiceSessionService = practiceSessionService;
         this.tournamentService = tournamentService;
+        this.memberRatingHistoryService = memberRatingHistoryService;
     }
 
     @GetMapping("/practice-sessions")
@@ -57,6 +62,11 @@ public class MemberController {
     public PlayerResponse updateProfile(@Valid @RequestBody UpdateMemberProfileRequest request,
                                         Authentication authentication) {
         return authenticationService.updateMemberProfile(authentication, request);
+    }
+
+    @GetMapping("/rating-history")
+    public List<RatingHistoryPointResponse> ratingHistory(Authentication authentication) {
+        return memberRatingHistoryService.listFor(authenticationService.currentMemberPlayer(authentication));
     }
 
     @PostMapping("/practice-sessions/{sessionId}/signup")

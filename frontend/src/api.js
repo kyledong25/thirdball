@@ -76,6 +76,7 @@ export const api = {
   listMemberPracticeSessions: () => client.get('/member/practice-sessions').then(({ data }) => data),
   listMemberTournaments: () => client.get('/member/tournaments').then(({ data }) => data),
   getMemberProfile: () => client.get('/member/profile').then(({ data }) => data),
+  getMemberRatingHistory: () => client.get('/member/rating-history').then(({ data }) => data),
   updateMemberProfile: (payload) => client.put('/member/profile', payload).then(({ data }) => data),
   signUpForPractice: (sessionId) => client.post(`/member/practice-sessions/${sessionId}/signup`).then(({ data }) => data),
   signUpForTournament: (tournamentId) => client.post(`/member/tournaments/${tournamentId}/signup`).then(({ data }) => data)
