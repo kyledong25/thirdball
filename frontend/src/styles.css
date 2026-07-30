@@ -103,3 +103,96 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 @media (max-width: 470px) {
   .topbar { padding: 12px 15px; }.brand h1 { font-size: 1.3rem; }.button-quiet { padding: 0 10px; }.content { padding: 25px 13px 40px; }.panel { padding: 20px 17px; }.stat-grid { gap: 10px; }.stat-card { min-height: 100px; padding: 16px; }.stat-card strong { font-size: 2rem; }.form-grid, .score-inputs { grid-template-columns: 1fr; }.versus-selects { grid-template-columns: 1fr; }.versus-selects .versus { padding: 0; }.tournament-forms { gap: 12px; }.practice-card { padding: 16px; }
 }
+
+/* Phone layouts: CSS media queries react immediately to the device viewport,
+   orientation, and touch input without relying on a fragile user-agent check. */
+@media (hover: none), (pointer: coarse) {
+  button, input, select, textarea { min-height: 44px; }
+  .button:not(:disabled):hover { transform: none; }
+  .nav-item, .text-button { -webkit-tap-highlight-color: transparent; }
+}
+
+@media (max-width: 600px) {
+  body { min-width: 0; overflow-x: hidden; }
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    min-height: 68px;
+    padding: 11px max(14px, env(safe-area-inset-right)) 11px max(14px, env(safe-area-inset-left));
+  }
+  .topbar::after { display: none; }
+  .brand { min-width: 0; gap: 9px; }
+  .brand-logo { width: 42px; height: 42px; }
+  .topbar .eyebrow { display: none; }
+  .brand h1 { max-width: 142px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.15rem; }
+  .topbar-actions { gap: 7px; }
+  .topbar-actions .button { min-height: 40px; padding: 0 10px; font-size: 0.72rem; }
+  .workspace { min-height: calc(100vh - 68px); }
+  .sidebar { padding: 7px 10px; }
+  .sidebar nav { gap: 7px; padding-bottom: 1px; scroll-snap-type: x proximity; }
+  .nav-item { min-height: 44px; padding: 9px 12px; scroll-snap-align: start; }
+  .nav-dot { width: 8px; height: 8px; }
+  .content, .member-content { padding: 24px 14px 42px; }
+  .page-intro { margin-bottom: 20px; }
+  .page-intro h2 { font-size: clamp(1.72rem, 9vw, 2.15rem); }
+  .page-intro > div > p:not(.eyebrow) { font-size: 0.9rem; line-height: 1.5; }
+  .panel { padding: 18px 15px; border-radius: 9px; }
+  .panel-heading { align-items: center; gap: 10px; margin-bottom: 16px; }
+  .panel-heading h3, .form-panel h3, .practice-card h3 { font-size: 1.13rem; }
+  .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .stat-card { min-height: 92px; padding: 14px 12px; }
+  .stat-card strong { font-size: 1.8rem; }
+  .stat-card span { font-size: 0.7rem; line-height: 1.2; }
+  .member-event { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 14px 0; }
+  .member-event .button, .form-panel form > .button, .member-profile-panel form .button { width: 100%; justify-self: stretch; }
+  .member-event .button { min-height: 44px; }
+  .member-profile-panel .form-hint { margin-top: 0; }
+  .rating-history-panel { min-height: 0; }
+  .rating-current { min-width: 50px; min-height: 32px; font-size: 1rem; }
+  .rating-chart { margin-top: 4px; }
+  .rating-axis-label { font-size: 9px; }
+  .rating-history-key { gap: 10px; font-size: 0.64rem; }
+  .two-column-layout { gap: 14px; margin-bottom: 14px; }
+  .form-panel form { margin-top: 16px; }
+  .form-panel input, .form-panel select, .form-panel textarea, .bracket-form input, .bracket-form select, .member-profile-panel input, .member-profile-panel select { min-height: 44px; }
+  .bracket-generator { padding: 14px; }
+  .bracket-form { grid-template-columns: 1fr; gap: 11px; padding: 13px; }
+  .bracket-form > strong { padding-bottom: 0; }
+  .bracket-form .compact-versus { display: none; }
+  .bracket-form .button { width: 100%; min-height: 44px; }
+  .bracket-round { width: min(78vw, 250px); padding-right: 14px; }
+  .bracket-grid { gap: 14px; }
+  .bracket-player { min-height: 39px; font-size: 0.8rem; }
+  .bracket-score-form input, .bracket-score-form button { min-height: 34px; }
+  .practice-card { grid-template-columns: 48px minmax(0, 1fr); gap: 12px; padding: 16px; }
+  .session-date { width: 48px; height: 56px; }
+  .session-main p:not(.eyebrow) { font-size: 0.78rem; }
+  .session-capacity { grid-column: 1 / -1; grid-template-columns: auto auto 1fr; align-items: center; column-gap: 8px; justify-items: start; text-align: left; }
+  .session-capacity .progress { max-width: none; }
+  .session-capacity > small { grid-column: 1 / -1; }
+  .match-review-item { align-items: flex-start; flex-direction: column; gap: 9px; }
+  .match-review-item .text-button { min-height: 36px; }
+  .calendar-event { grid-template-columns: 46px minmax(0, 1fr); gap: 10px; }
+  .calendar-event h4 { font-size: 0.88rem; }
+  .calendar-event p { font-size: 0.72rem; }
+  .table-panel { padding-bottom: 2px; }
+  .table-wrap { margin: 0 -15px; padding: 0 15px 6px; overscroll-behavior-x: contain; }
+  table { min-width: 650px; }
+  th, td { padding: 12px 14px; }
+  .auth-shell { padding: 18px 14px; place-items: start center; }
+  .auth-card { margin-top: max(16px, env(safe-area-inset-top)); padding: 24px 19px; border-radius: 12px; }
+  .auth-card h2 { font-size: 1.7rem; }
+  .auth-card form .button { width: 100%; justify-self: stretch; }
+}
+
+@media (max-width: 390px) {
+  .brand h1 { max-width: 120px; font-size: 1.03rem; }
+  .topbar-actions .button:first-of-type { width: 40px; padding: 0; font-size: 0; }
+  .topbar-actions .button:first-of-type::after { content: '↻'; font-size: 1.05rem; }
+  .topbar-actions .button:last-of-type { padding: 0 9px; }
+  .stat-card { padding: 12px 9px; }
+  .stat-card strong { font-size: 1.55rem; }
+  .stat-card span { font-size: 0.64rem; }
+  .count-chip { padding: 4px 7px; font-size: 0.65rem; }
+}
