@@ -232,6 +232,7 @@ function AdminApp({ account, onSignOut }) {
 
 function AuthenticationGate({ onAuthenticated }) {
   const [mode, setMode] = useState('login');
+  const [registrationStep, setRegistrationStep] = useState('details');
   const [form, setForm] = useState({ displayName: '', email: '', password: '' });
   const [verification, setVerification] = useState({ email: '', code: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -240,13 +241,17 @@ function AuthenticationGate({ onAuthenticated }) {
 
   function changeMode(nextMode) {
     setMode(nextMode);
+    setRegistrationStep('details');
     setError('');
     setInfo('');
   }
 
   function openVerification() {
     setVerification({ email: form.email || verification.email, code: '' });
-    changeMode('verify');
+    setMode('register');
+    setRegistrationStep('verify');
+    setError('');
+    setInfo('');
   }
 
   async function submit(event) {
@@ -255,17 +260,18 @@ function AuthenticationGate({ onAuthenticated }) {
     setError('');
     setInfo('');
     try {
-      if (mode === 'register') {
+      if (mode === 'register' && registrationStep === 'details') {
         const pendingAccount = await api.registerMember(form);
         setVerification({ email: pendingAccount.email, code: '' });
-        setMode('verify');
+        setRegistrationStep('verify');
         setInfo(`We sent a six-digit verification code to ${pendingAccount.email}.`);
         return;
       }
-      if (mode === 'verify') {
+      if (mode === 'register' && registrationStep === 'verify') {
         await api.verifyEmail(verification);
         setForm({ displayName: '', email: verification.email, password: '' });
         setMode('login');
+        setRegistrationStep('details');
         setInfo('Email verified. Sign in with your new account to finish.');
         return;
       }
@@ -297,9 +303,9 @@ function AuthenticationGate({ onAuthenticated }) {
   }
 
   const isLogin = mode === 'login';
-  const isVerification = mode === 'verify';
+  const isVerification = mode === 'register' && registrationStep === 'verify';
   const heading = isLogin ? 'Sign in to your club view'
-    : isVerification ? 'Confirm your email address' : 'Create your member account';
+    : isVerification ? 'Finish creating your member account' : 'Create your member account';
   const description = isLogin
     ? 'Administrators enter the club operations desk. Members see their upcoming events and personal sign-up actions.'
     : isVerification
@@ -313,13 +319,13 @@ function AuthenticationGate({ onAuthenticated }) {
           <img src={clubLogo} alt="Texas A&M University Table Tennis Club logo" />
           <div><p className="eyebrow">Texas A&amp;M University</p><h1>TAMU Table Tennis</h1></div>
         </div>
-        <p className="eyebrow">{isLogin ? 'Member access' : isVerification ? 'Email verification' : 'Join the club'}</p>
+        <p className="eyebrow">{isLogin ? 'Member access' : 'Join the club'}</p>
         <h2>{heading}</h2>
         <p>{description}</p>
         {error && <div className="inline-error">{error}</div>}
         {info && <div className="inline-success">{info}</div>}
         <form onSubmit={submit}>
-          {mode === 'register' && <label>Full name<input required maxLength="100" value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} /></label>}
+          {mode === 'register' && !isVerification && <label>Full name<input required maxLength="100" value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} /></label>}
           {isVerification ? <>
             <label>Email<input required type="email" value={verification.email} onChange={(event) => setVerification({ ...verification, email: event.target.value })} /></label>
             <label>Verification code<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" placeholder="123456" value={verification.code} onChange={(event) => setVerification({ ...verification, code: event.target.value.replace(/\D/g, '') })} /></label>
@@ -334,12 +340,13 @@ function AuthenticationGate({ onAuthenticated }) {
             <button className="text-button" onClick={() => changeMode('register')}>Need a member account? Register →</button>
             <button className="text-button" onClick={openVerification}>Finish email verification →</button>
           </>}
-          {mode === 'register' && <>
+          {mode === 'register' && !isVerification && <>
             <button className="text-button" onClick={() => changeMode('login')}>Already have an account? Sign in →</button>
             <button className="text-button" onClick={openVerification}>Already have a code? Verify email →</button>
           </>}
           {isVerification && <>
             <button className="text-button" disabled={submitting} onClick={resendVerification}>Resend verification code</button>
+            <button className="text-button" onClick={() => { setRegistrationStep('details'); setError(''); setInfo(''); }}>Back to registration details</button>
             <button className="text-button" onClick={() => changeMode('login')}>Back to sign in</button>
           </>}
         </div>
