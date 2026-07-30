@@ -380,7 +380,7 @@ function MemberApp({ account, onSignOut }) {
           </>}
           {view === 'results' && <>
             <PageIntro eyebrow="Member ladder match" title="Report and confirm results.">
-              Send a score to your opponent. It becomes an official USATT-rated match only after they agree.
+              Send a score to your opponent. It becomes an official TAMU TTC rated match only after they agree.
             </PageIntro>
             <MemberMatchResultDesk profile={profile} players={ladder} requests={matchResultRequests} onPropose={proposeMatchResult} onRespond={respondToMatchResult} />
           </>}
