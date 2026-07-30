@@ -26,10 +26,10 @@ public class MatchResponse {
     private MatchResponse(Match match) {
         id = match.getId();
         tournamentId = match.getTournament() == null ? null : match.getTournament().getId();
-        playerOneId = match.getPlayerOne().getId();
-        playerOneName = match.getPlayerOne().getDisplayName();
-        playerTwoId = match.getPlayerTwo().getId();
-        playerTwoName = match.getPlayerTwo().getDisplayName();
+        playerOneId = match.getPlayerOne() == null ? null : match.getPlayerOne().getId();
+        playerOneName = match.getPlayerOne() == null ? null : match.getPlayerOne().getDisplayName();
+        playerTwoId = match.getPlayerTwo() == null ? null : match.getPlayerTwo().getId();
+        playerTwoName = match.getPlayerTwo() == null ? null : match.getPlayerTwo().getDisplayName();
         winnerId = match.getWinner() == null ? null : match.getWinner().getId();
         playerOneScore = match.getPlayerOneScore();
         playerTwoScore = match.getPlayerTwoScore();

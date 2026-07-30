@@ -7,6 +7,7 @@ import com.thirdball.domain.Match;
 import com.thirdball.domain.MatchStatus;
 import com.thirdball.domain.Player;
 import com.thirdball.domain.Tournament;
+import com.thirdball.domain.TournamentStatus;
 import com.thirdball.exception.ConflictException;
 import com.thirdball.exception.NotFoundException;
 import com.thirdball.repository.MatchRepository;
@@ -57,6 +58,9 @@ public class MatchService {
         if (request.getTournamentId() != null) {
             Tournament tournament = tournamentRepository.findById(request.getTournamentId())
                     .orElseThrow(() -> new NotFoundException("Tournament " + request.getTournamentId() + " was not found"));
+            if (tournament.getStatus() != TournamentStatus.REGISTRATION_OPEN) {
+                throw new ConflictException("Tournament matches are managed by the generated bracket after registration closes");
+            }
             if (!tournament.getParticipants().contains(playerOne) || !tournament.getParticipants().contains(playerTwo)) {
                 throw new ConflictException("Tournament matches require both players to be registered");
             }
@@ -72,6 +76,9 @@ public class MatchService {
                 .orElseThrow(() -> new NotFoundException("Match " + matchId + " was not found"));
         if (match.getStatus() != MatchStatus.SCHEDULED) {
             throw new ConflictException("A result can only be submitted once for a scheduled match");
+        }
+        if (match.getPlayerOne() == null || match.getPlayerTwo() == null) {
+            throw new ConflictException("This bracket match is awaiting a player from an earlier round");
         }
         if (request.getPlayerOneScore().equals(request.getPlayerTwoScore())) {
             throw new IllegalArgumentException("Table tennis matches cannot end in a tie");
@@ -110,6 +117,8 @@ public class MatchService {
             recordProvisionalResult(match, playerOne, playerTwo);
         }
 
+        advanceTournamentWinner(match, winner);
+
         return MatchResponse.from(match);
     }
 
@@ -142,6 +151,8 @@ public class MatchService {
             throw new ConflictException("This result cannot be invalidated because one of these players has a later completed match. "
                     + "Invalidate the newer result first or correct the ratings manually.");
         }
+
+        withdrawAdvancedTournamentWinner(match);
 
         restoreRatingBeforeMatch(match, playerOne, true);
         restoreRatingBeforeMatch(match, playerTwo, false);
@@ -188,6 +199,61 @@ public class MatchService {
         playerTwo.setRating(updatedRatings.getPlayer2Rating());
         match.setPlayerOneRatingAfter(playerOne.getRating());
         match.setPlayerTwoRatingAfter(playerTwo.getRating());
+    }
+
+    private void advanceTournamentWinner(Match match, Player winner) {
+        if (match.getTournament() == null) {
+            return;
+        }
+        if (match.getNextMatch() == null) {
+            Tournament tournament = tournamentRepository.findByIdForUpdate(match.getTournament().getId())
+                    .orElseThrow(() -> new NotFoundException("Tournament " + match.getTournament().getId() + " was not found"));
+            if (tournament.getStatus() == TournamentStatus.IN_PROGRESS) {
+                tournament.setStatus(TournamentStatus.COMPLETED);
+            }
+            return;
+        }
+
+        Match nextMatch = matchRepository.findByIdForUpdate(match.getNextMatch().getId())
+                .orElseThrow(() -> new NotFoundException("The next bracket match was not found"));
+        if (match.getNextMatchPlayerSlot() == 1) {
+            if (nextMatch.getPlayerOne() != null && !nextMatch.getPlayerOne().getId().equals(winner.getId())) {
+                throw new ConflictException("The next bracket match already has a different player in this slot");
+            }
+            nextMatch.setPlayerOne(winner);
+        } else {
+            if (nextMatch.getPlayerTwo() != null && !nextMatch.getPlayerTwo().getId().equals(winner.getId())) {
+                throw new ConflictException("The next bracket match already has a different player in this slot");
+            }
+            nextMatch.setPlayerTwo(winner);
+        }
+    }
+
+    private void withdrawAdvancedTournamentWinner(Match match) {
+        if (match.getTournament() == null) {
+            return;
+        }
+        if (match.getNextMatch() == null) {
+            Tournament tournament = tournamentRepository.findByIdForUpdate(match.getTournament().getId())
+                    .orElseThrow(() -> new NotFoundException("Tournament " + match.getTournament().getId() + " was not found"));
+            if (tournament.getStatus() == TournamentStatus.COMPLETED) {
+                tournament.setStatus(TournamentStatus.IN_PROGRESS);
+            }
+            return;
+        }
+
+        Match nextMatch = matchRepository.findByIdForUpdate(match.getNextMatch().getId())
+                .orElseThrow(() -> new NotFoundException("The next bracket match was not found"));
+        if (nextMatch.getStatus() != MatchStatus.SCHEDULED) {
+            throw new ConflictException("This result cannot be invalidated after its next bracket match has progressed");
+        }
+        if (match.getNextMatchPlayerSlot() == 1) {
+            if (nextMatch.getPlayerOne() != null && nextMatch.getPlayerOne().getId().equals(match.getWinner().getId())) {
+                nextMatch.setPlayerOne(null);
+            }
+        } else if (nextMatch.getPlayerTwo() != null && nextMatch.getPlayerTwo().getId().equals(match.getWinner().getId())) {
+            nextMatch.setPlayerTwo(null);
+        }
     }
 
     private void restoreRatingBeforeMatch(Match match, Player player, boolean isPlayerOne) {

@@ -46,6 +46,11 @@ public class TournamentController {
         return tournamentService.registerPlayer(tournamentId, request.getPlayerId());
     }
 
+    @PostMapping("/{tournamentId}/generate-bracket")
+    public TournamentResponse generateBracket(@PathVariable Long tournamentId) {
+        return tournamentService.generateBracket(tournamentId);
+    }
+
     @GetMapping("/{tournamentId}/matches")
     public List<MatchResponse> bracketMatches(@PathVariable Long tournamentId) {
         return matchService.listTournamentMatches(tournamentId);

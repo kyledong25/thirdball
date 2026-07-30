@@ -2,6 +2,7 @@ package com.thirdball.service;
 
 import com.thirdball.api.request.CreatePlayerRequest;
 import com.thirdball.api.request.UpdatePlayerRatingRequest;
+import com.thirdball.api.request.UpdateDuesStatusRequest;
 import com.thirdball.api.response.PlayerResponse;
 import com.thirdball.domain.Player;
 import com.thirdball.exception.ConflictException;
@@ -45,6 +46,14 @@ public class PlayerService {
                 .orElseThrow(() -> new NotFoundException("Player " + playerId + " was not found"));
         player.setRating(request.getRating());
         player.setRatingEstablished(true);
+        return PlayerResponse.from(player);
+    }
+
+    @Transactional
+    public PlayerResponse updateDuesStatus(Long playerId, UpdateDuesStatusRequest request) {
+        Player player = playerRepository.findByIdForUpdate(playerId)
+                .orElseThrow(() -> new NotFoundException("Player " + playerId + " was not found"));
+        player.setDuesPaid(request.getDuesPaid());
         return PlayerResponse.from(player);
     }
 

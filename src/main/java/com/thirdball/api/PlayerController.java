@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PutMapping;
 import com.thirdball.api.request.UpdatePlayerRatingRequest;
+import com.thirdball.api.request.UpdateDuesStatusRequest;
 
 import javax.validation.Valid;
 import java.util.List;
@@ -39,6 +40,12 @@ public class PlayerController {
     public PlayerResponse updateRating(@PathVariable Long playerId,
                                        @Valid @RequestBody UpdatePlayerRatingRequest request) {
         return playerService.updateRating(playerId, request);
+    }
+
+    @PutMapping("/{playerId}/dues")
+    public PlayerResponse updateDuesStatus(@PathVariable Long playerId,
+                                           @Valid @RequestBody UpdateDuesStatusRequest request) {
+        return playerService.updateDuesStatus(playerId, request);
     }
 
     @PostMapping("/{playerId}/remove-from-ladder")

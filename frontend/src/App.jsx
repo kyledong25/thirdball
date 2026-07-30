@@ -5,6 +5,7 @@ import { addDays, byRating, formatDateTime, formatRange, isRatingEstablished, pl
 
 const navigation = [
   { id: 'dashboard', label: 'Aggie Overview' },
+  { id: 'calendar', label: 'Club Calendar' },
   { id: 'players', label: 'Aggie Ladder' },
   { id: 'tournaments', label: 'Tournaments' },
   { id: 'practice', label: 'Practice Nights' }
@@ -47,22 +48,25 @@ function AdminApp({ account, onSignOut }) {
   const [matches, setMatches] = useState([]);
   const [tournaments, setTournaments] = useState([]);
   const [practiceSessions, setPracticeSessions] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
 
   const refreshData = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextPlayers, nextMatches, nextTournaments, nextSessions] = await Promise.all([
+      const [nextPlayers, nextMatches, nextTournaments, nextSessions, nextCalendarEvents] = await Promise.all([
         api.listPlayers(),
         api.listMatches(),
         api.listTournaments(),
-        api.listPracticeSessions()
+        api.listPracticeSessions(),
+        api.listCalendar()
       ]);
       setPlayers(nextPlayers);
       setMatches(nextMatches);
       setTournaments(nextTournaments);
       setPracticeSessions(nextSessions);
+      setCalendarEvents(nextCalendarEvents);
     } catch (error) {
       setNotice({ type: 'error', text: `Could not load club data: ${errorMessage(error)}` });
     } finally {
@@ -91,6 +95,9 @@ function AdminApp({ account, onSignOut }) {
     updatePlayerRating: (playerId, rating) => perform(
       () => api.updatePlayerRating(playerId, rating),
       'Member rating updated. The player is now established.'),
+    updateDuesStatus: (playerId, duesPaid) => perform(
+      () => api.updateDuesStatus(playerId, duesPaid),
+      `Member dues marked ${duesPaid ? 'paid' : 'unpaid'}.`),
     removePlayerFromLadder: (playerId) => perform(
       () => api.removePlayerFromLadder(playerId),
       'Player removed from the active club ladder.'),
@@ -109,6 +116,8 @@ function AdminApp({ account, onSignOut }) {
     createTournament: (payload) => perform(() => api.createTournament(payload), 'Tournament created. Registration is now open.'),
     registerTournamentPlayer: (tournamentId, playerId) =>
       perform(() => api.registerForTournament(tournamentId, playerId), 'Player registered for the tournament.'),
+    generateTournamentBracket: (tournamentId) =>
+      perform(() => api.generateTournamentBracket(tournamentId), 'Rating-seeded single-elimination bracket generated.'),
     scheduleTournamentMatch: (payload) => perform(() => api.createMatch(payload), 'Tournament match added to the bracket.'),
     submitTournamentResult: (matchId, scores) =>
       perform(() => api.submitMatchResult(matchId, scores), 'Bracket result recorded and USATT ratings updated.'),
@@ -164,6 +173,7 @@ function AdminApp({ account, onSignOut }) {
         <main className="content">
           {notice && <Notice notice={notice} onClose={() => setNotice(null)} />}
           {view === 'dashboard' && <Dashboard players={players} tournaments={tournaments} practiceSessions={practiceSessions} onNavigate={setView} />}
+          {view === 'calendar' && <CalendarView events={calendarEvents} />}
           {view === 'players' && <PlayersAndLadder players={players} matches={matches} actions={actions} />}
           {view === 'tournaments' && <TournamentHub players={players} tournaments={tournaments} actions={actions} />}
           {view === 'practice' && <PracticeHub players={players} practiceSessions={practiceSessions} actions={actions} />}
@@ -226,6 +236,8 @@ function AuthenticationGate({ onAuthenticated }) {
 function MemberApp({ account, onSignOut }) {
   const [practiceSessions, setPracticeSessions] = useState([]);
   const [tournaments, setTournaments] = useState([]);
+  const [profile, setProfile] = useState(null);
+  const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
   const [signingUpFor, setSigningUpFor] = useState('');
@@ -233,12 +245,16 @@ function MemberApp({ account, onSignOut }) {
   const refreshEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextPracticeSessions, nextTournaments] = await Promise.all([
+      const [nextPracticeSessions, nextTournaments, nextProfile, nextCalendarEvents] = await Promise.all([
         api.listMemberPracticeSessions(),
-        api.listMemberTournaments()
+        api.listMemberTournaments(),
+        api.getMemberProfile(),
+        api.listCalendar()
       ]);
       setPracticeSessions(nextPracticeSessions);
       setTournaments(nextTournaments);
+      setProfile(nextProfile);
+      setCalendarEvents(nextCalendarEvents);
     } catch (error) {
       setNotice({ type: 'error', text: errorMessage(error) });
     } finally {
@@ -260,6 +276,18 @@ function MemberApp({ account, onSignOut }) {
       setNotice({ type: 'error', text: errorMessage(error) });
     } finally {
       setSigningUpFor('');
+    }
+  }
+
+  async function updateProfile(payload) {
+    try {
+      const updatedProfile = await api.updateMemberProfile(payload);
+      setProfile(updatedProfile);
+      setNotice({ type: 'success', text: 'Your member profile has been updated.' });
+      return updatedProfile;
+    } catch (error) {
+      setNotice({ type: 'error', text: errorMessage(error) });
+      return null;
     }
   }
 
@@ -285,8 +313,73 @@ function MemberApp({ account, onSignOut }) {
           <EventSchedule title="Upcoming practices" events={practiceSessions} kind="practice" signingUpFor={signingUpFor} onSignUp={signUp} />
           <EventSchedule title="Upcoming tournaments" events={tournaments} kind="tournament" signingUpFor={signingUpFor} onSignUp={signUp} />
         </section>
+        <section className="member-profile-layout">
+          <MemberProfile profile={profile} onSubmit={updateProfile} />
+          <CalendarView events={calendarEvents} compact />
+        </section>
       </main>
     </div>
+  );
+}
+
+function MemberProfile({ profile, onSubmit }) {
+  const [form, setForm] = useState({ graduationYear: '', skillLevel: '', phone: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setForm({
+        graduationYear: profile.graduationYear ?? '',
+        skillLevel: profile.skillLevel ?? '',
+        phone: profile.phone ?? ''
+      });
+    }
+  }, [profile]);
+
+  async function submit(event) {
+    event.preventDefault();
+    setSubmitting(true);
+    await onSubmit({
+      graduationYear: form.graduationYear === '' ? null : Number(form.graduationYear),
+      skillLevel: form.skillLevel || null,
+      phone: form.phone.trim() || null
+    });
+    setSubmitting(false);
+  }
+
+  return (
+    <section className="panel member-profile-panel">
+      <div className="panel-heading">
+        <div><p className="eyebrow">Your club profile</p><h3>Member details</h3></div>
+        {profile && <span className={`status-pill ${profile.duesPaid ? 'status-active' : 'status-unpaid'}`}>{profile.duesPaid ? 'Dues paid' : 'Dues unpaid'}</span>}
+      </div>
+      <p className="form-hint">Dues status is managed by club administrators. Keep your class year, experience, and contact number current.</p>
+      <form onSubmit={submit}>
+        <div className="form-grid">
+          <label>Graduation year<input type="number" min="2000" max="2100" value={form.graduationYear} onChange={(event) => setForm({ ...form, graduationYear: event.target.value })} placeholder="2028" /></label>
+          <label>Skill level<select value={form.skillLevel} onChange={(event) => setForm({ ...form, skillLevel: event.target.value })}><option value="">Choose level</option><option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>Competitive</option></select></label>
+        </div>
+        <label>Phone<input type="tel" maxLength="30" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="(979) 555-0123" /></label>
+        <button className="button button-secondary" disabled={submitting}>{submitting ? 'Saving…' : 'Save profile'}</button>
+      </form>
+    </section>
+  );
+}
+
+function CalendarView({ events, compact = false }) {
+  return (
+    <section className={`panel calendar-panel ${compact ? 'is-compact' : ''}`}>
+      <div className="panel-heading">
+        <div><p className="eyebrow">Club-wide schedule</p><h3>Global calendar</h3></div>
+        <span className="count-chip">{events.length} upcoming</span>
+      </div>
+      {events.length ? <div className="calendar-list">{events.map((event) => (
+        <article className="calendar-event" key={`${event.type}-${event.id}`}>
+          <div className="calendar-date"><span>{new Date(event.startsAt).toLocaleDateString('en-US', { month: 'short' })}</span><strong>{new Date(event.startsAt).getDate()}</strong></div>
+          <div><span className={`event-type event-type-${event.type.toLowerCase()}`}>{event.type === 'PRACTICE' ? 'Practice' : 'Tournament'}</span><h4>{event.title}</h4><p>{formatRange(event.startsAt, event.endsAt)} · {event.location || 'Location TBA'}</p>{event.description && <small>{event.description}</small>}</div>
+        </article>
+      ))}</div> : <EmptyState compact text="No upcoming club events have been posted." />}
+    </section>
   );
 }
 
@@ -440,7 +533,7 @@ function PlayersAndLadder({ players, matches, actions }) {
           </div>
           <span className="count-chip">{players.length} players</span>
         </div>
-        {orderedPlayers.length ? <LadderTable players={orderedPlayers} onRemove={actions.removePlayerFromLadder} /> : <EmptyState text="Your club roster will appear here after you add the first player." />}
+        {orderedPlayers.length ? <LadderTable players={orderedPlayers} onRemove={actions.removePlayerFromLadder} onUpdateDues={actions.updateDuesStatus} /> : <EmptyState text="Your club roster will appear here after you add the first player." />}
       </section>
       <MatchResultReview matches={matches} onInvalidate={actions.invalidateMatch} />
     </>
@@ -570,8 +663,9 @@ function AdminRatingEditor({ players, onSubmit }) {
   );
 }
 
-function LadderTable({ players, onRemove }) {
+function LadderTable({ players, onRemove, onUpdateDues }) {
   const [removingPlayerId, setRemovingPlayerId] = useState('');
+  const [updatingDuesId, setUpdatingDuesId] = useState('');
 
   async function removePlayer(player) {
     if (!window.confirm(`Remove ${player.displayName} from the active club ladder? Their match history will be retained.`)) return;
@@ -580,20 +674,28 @@ function LadderTable({ players, onRemove }) {
     setRemovingPlayerId('');
   }
 
+  async function updateDues(player) {
+    setUpdatingDuesId(String(player.id));
+    await onUpdateDues(player.id, !player.duesPaid);
+    setUpdatingDuesId('');
+  }
+
   return (
     <div className="table-wrap">
       <table>
-        <thead><tr><th>Rank</th><th>Player</th><th>Email</th><th className="right">USATT rating</th><th>Status</th><th>Action</th></tr></thead>
+        <thead><tr><th>Rank</th><th>Player</th><th>Profile</th><th>Email</th><th className="right">USATT rating</th><th>Dues</th><th>Status</th><th>Action</th></tr></thead>
         <tbody>
           {players.map((player, index) => (
             <tr key={player.id}>
               <td><span className="rank rank-table">{index + 1}</span></td>
               <td><div className="player-cell"><span className="avatar">{player.displayName.slice(0, 1).toUpperCase()}</span><strong>{player.displayName}</strong></div></td>
+              <td><span className="profile-summary">{player.graduationYear ? `Class of ${player.graduationYear}` : 'Class year —'}<small>{player.skillLevel || 'Skill level —'}</small></span></td>
               <td>{player.email}</td>
               <td className="right rating-number">
                 {isRatingEstablished(player) ? player.rating : 'Unrated'}
                 {!isRatingEstablished(player) && <small>{player.provisionalMatchCount || 0}/5 matches</small>}
               </td>
+              <td><button className={`dues-button ${player.duesPaid ? 'is-paid' : 'is-unpaid'}`} disabled={updatingDuesId === String(player.id)} onClick={() => updateDues(player)}>{updatingDuesId === String(player.id) ? 'Saving…' : player.duesPaid ? 'Paid' : 'Unpaid'}</button></td>
               <td><span className={`status-pill ${player.active ? 'status-active' : 'status-muted'}`}>{player.active ? 'Active' : 'Inactive'}</span></td>
               <td><button className="text-button danger-button" disabled={removingPlayerId === String(player.id)} onClick={() => removePlayer(player)}>{removingPlayerId === String(player.id) ? 'Removing…' : 'Remove'}</button></td>
             </tr>
@@ -647,7 +749,7 @@ function TournamentHub({ players, tournaments, actions }) {
   return (
     <>
       <PageIntro eyebrow="Single-elimination events" title="Tournament control room">
-        Open registration, confirm players, then add and progress each bracket match. The bracket below always reads the latest match results.
+        Open registration, confirm the field, then generate a rating-seeded single-elimination bracket. Winners automatically advance as results are entered.
       </PageIntro>
       <section className="two-column-layout tournament-forms">
         <TournamentForm onSubmit={actions.createTournament} />
@@ -727,6 +829,7 @@ function TournamentBracket({ tournament, players, actions }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refreshIndex, setRefreshIndex] = useState(0);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -750,6 +853,14 @@ function TournamentBracket({ tournament, players, actions }) {
     return result;
   }
 
+  async function generateBracket() {
+    if (!window.confirm(`Generate a rating-seeded bracket for ${tournament.name}? Registration will close and the field will be locked.`)) return;
+    setGenerating(true);
+    const result = await actions.generateTournamentBracket(tournament.id);
+    if (result) setRefreshIndex((value) => value + 1);
+    setGenerating(false);
+  }
+
   async function submitResult(matchId, scores) {
     const result = await actions.submitTournamentResult(matchId, scores);
     if (result) setRefreshIndex((value) => value + 1);
@@ -764,7 +875,8 @@ function TournamentBracket({ tournament, players, actions }) {
 
   return (
     <div className="bracket-workspace">
-      <BracketMatchForm players={players} onSubmit={schedule} />
+      {tournament.status === 'REGISTRATION_OPEN' && <BracketGenerator tournament={tournament} generating={generating} onGenerate={generateBracket} />}
+      {tournament.status === 'REGISTRATION_OPEN' && <details className="manual-bracket-details"><summary>Need a manual bracket match instead?</summary><BracketMatchForm players={players} onSubmit={schedule} /></details>}
       {loading ? <p className="loading-copy">Loading bracket…</p> : error ? <div className="inline-error">{error}</div> : Object.keys(rounds).length ? (
         <div className="bracket-scroll">
           <div className="bracket-grid">
@@ -778,8 +890,19 @@ function TournamentBracket({ tournament, players, actions }) {
             ))}
           </div>
         </div>
-      ) : <EmptyState text="No matches have been placed in this bracket yet. Add a first-round match above after registering both players." />}
+      ) : <EmptyState text={tournament.status === 'REGISTRATION_OPEN' ? 'Register at least two players, then generate the rating-seeded bracket.' : 'The generated bracket is being prepared.'} />}
     </div>
+  );
+}
+
+function BracketGenerator({ tournament, generating, onGenerate }) {
+  const canGenerate = tournament.registeredCount >= 2;
+  return (
+    <section className="bracket-generator">
+      <div><strong>Generate rating-seeded bracket</strong><p>Seeds use established USATT ratings first; unranked members follow in registration order. Opening byes advance automatically.</p></div>
+      <button className="button button-primary" disabled={!canGenerate || generating} onClick={onGenerate}>{generating ? 'Generating…' : 'Generate bracket'}</button>
+      {!canGenerate && <small>Register at least two active players to generate a bracket.</small>}
+    </section>
   );
 }
 
@@ -828,14 +951,17 @@ function BracketMatch({ match, onSubmitResult, onInvalidateResult }) {
     await onInvalidateResult(match.id);
     setInvalidating(false);
   }
+  const readyForResult = match.status === 'SCHEDULED' && match.playerOneId && match.playerTwoId;
   return (
-    <article className={`bracket-match ${match.status === 'COMPLETED' ? 'is-complete' : ''} ${match.status === 'CANCELLED' ? 'is-cancelled' : ''}`}>
-      <div className={`bracket-player ${match.winnerId === match.playerOneId ? 'is-winner' : ''}`}><span>{match.playerOneName}</span><strong>{match.playerOneScore ?? '—'}</strong></div>
-      <div className={`bracket-player ${match.winnerId === match.playerTwoId ? 'is-winner' : ''}`}><span>{match.playerTwoName}</span><strong>{match.playerTwoScore ?? '—'}</strong></div>
-      {match.status === 'SCHEDULED' && !editing && <button className="text-button result-button" onClick={() => setEditing(true)}>Enter result</button>}
+    <article className={`bracket-match ${match.status === 'COMPLETED' ? 'is-complete' : ''} ${match.status === 'CANCELLED' ? 'is-cancelled' : ''} ${match.status === 'BYE' ? 'is-bye' : ''}`}>
+      <div className={`bracket-player ${match.winnerId === match.playerOneId ? 'is-winner' : ''}`}><span>{match.playerOneName || 'Awaiting player'}</span><strong>{match.playerOneScore ?? '—'}</strong></div>
+      <div className={`bracket-player ${match.winnerId === match.playerTwoId ? 'is-winner' : ''}`}><span>{match.playerTwoName || 'Awaiting player'}</span><strong>{match.playerTwoScore ?? '—'}</strong></div>
+      {readyForResult && !editing && <button className="text-button result-button" onClick={() => setEditing(true)}>Enter result</button>}
       {editing && <form className="bracket-score-form" onSubmit={submit}><input required type="number" min="0" value={scores.playerOneScore} onChange={(e) => setScores({ ...scores, playerOneScore: e.target.value })} /><span>–</span><input required type="number" min="0" value={scores.playerTwoScore} onChange={(e) => setScores({ ...scores, playerTwoScore: e.target.value })} /><button disabled={submitting}>{submitting ? '…' : 'Save'}</button></form>}
       {match.status === 'COMPLETED' && <button className="text-button result-button danger-button" disabled={invalidating} onClick={invalidate}>{invalidating ? 'Invalidating…' : 'Invalidate result'}</button>}
       {match.status === 'CANCELLED' && <span className="status-pill status-muted bracket-status">Invalidated</span>}
+      {match.status === 'BYE' && <span className="status-pill status-bye bracket-status">Bye advanced</span>}
+      {match.status === 'SCHEDULED' && !readyForResult && <span className="bracket-awaiting">Awaiting feeder result</span>}
     </article>
   );
 }

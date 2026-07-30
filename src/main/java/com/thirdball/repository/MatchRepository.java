@@ -18,6 +18,8 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
 
     List<Match> findByTournament_IdOrderByRoundNumberAscBracketSlotAsc(Long tournamentId);
 
+    boolean existsByTournament_Id(Long tournamentId);
+
     @Query("select m from Match m where m.status = :status "
             + "and (m.playerOne.id = :playerId or m.playerTwo.id = :playerId) "
             + "order by m.completedAt asc, m.id asc")

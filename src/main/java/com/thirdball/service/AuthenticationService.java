@@ -1,7 +1,9 @@
 package com.thirdball.service;
 
 import com.thirdball.api.request.RegisterMemberRequest;
+import com.thirdball.api.request.UpdateMemberProfileRequest;
 import com.thirdball.api.response.AuthenticatedUserResponse;
+import com.thirdball.api.response.PlayerResponse;
 import com.thirdball.domain.ClubRole;
 import com.thirdball.domain.ClubUser;
 import com.thirdball.domain.Player;
@@ -69,6 +71,17 @@ public class AuthenticationService {
         return user.getPlayer();
     }
 
+    @Transactional
+    public PlayerResponse updateMemberProfile(Authentication authentication, UpdateMemberProfileRequest request) {
+        Player currentPlayer = currentMemberPlayer(authentication);
+        Player player = playerRepository.findByIdForUpdate(currentPlayer.getId())
+                .orElseThrow(() -> new NotFoundException("Your member profile was not found"));
+        player.setGraduationYear(request.getGraduationYear());
+        player.setSkillLevel(trimToNull(request.getSkillLevel()));
+        player.setPhone(trimToNull(request.getPhone()));
+        return PlayerResponse.from(player);
+    }
+
     private ClubUser findByEmail(String email) {
         return clubUserRepository.findByEmail(normalizeEmail(email))
                 .orElseThrow(() -> new NotFoundException("Authenticated account was not found"));
@@ -76,5 +89,11 @@ public class AuthenticationService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

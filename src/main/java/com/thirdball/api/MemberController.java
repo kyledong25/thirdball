@@ -1,7 +1,9 @@
 package com.thirdball.api;
 
 import com.thirdball.api.response.PracticeSessionResponse;
+import com.thirdball.api.response.PlayerResponse;
 import com.thirdball.api.response.TournamentResponse;
+import com.thirdball.api.request.UpdateMemberProfileRequest;
 import com.thirdball.domain.Player;
 import com.thirdball.service.AuthenticationService;
 import com.thirdball.service.PracticeSessionService;
@@ -11,10 +13,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import javax.validation.Valid;
 
 /** General-member schedule and self-service event registration routes. */
 @RestController
@@ -41,6 +46,17 @@ public class MemberController {
     @GetMapping("/tournaments")
     public List<TournamentResponse> upcomingTournaments() {
         return tournamentService.listUpcoming();
+    }
+
+    @GetMapping("/profile")
+    public PlayerResponse profile(Authentication authentication) {
+        return PlayerResponse.from(authenticationService.currentMemberPlayer(authentication));
+    }
+
+    @PutMapping("/profile")
+    public PlayerResponse updateProfile(@Valid @RequestBody UpdateMemberProfileRequest request,
+                                        Authentication authentication) {
+        return authenticationService.updateMemberProfile(authentication, request);
     }
 
     @PostMapping("/practice-sessions/{sessionId}/signup")

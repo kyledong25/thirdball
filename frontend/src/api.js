@@ -48,13 +48,19 @@ export const api = {
     client.post(`/players/${playerId}/remove-from-ladder`).then(({ data }) => data),
   updatePlayerRating: (playerId, rating) =>
     client.put(`/players/${playerId}/rating`, { rating }).then(({ data }) => data),
+  updateDuesStatus: (playerId, duesPaid) =>
+    client.put(`/players/${playerId}/dues`, { duesPaid }).then(({ data }) => data),
 
   listTournaments: () => client.get('/tournaments').then(({ data }) => data),
   createTournament: (payload) => client.post('/tournaments', payload).then(({ data }) => data),
   registerForTournament: (tournamentId, playerId) =>
     client.post(`/tournaments/${tournamentId}/registrations`, { playerId }).then(({ data }) => data),
+  generateTournamentBracket: (tournamentId) =>
+    client.post(`/tournaments/${tournamentId}/generate-bracket`).then(({ data }) => data),
   listTournamentMatches: (tournamentId) =>
     client.get(`/tournaments/${tournamentId}/matches`).then(({ data }) => data),
+
+  listCalendar: () => client.get('/calendar').then(({ data }) => data),
 
   createMatch: (payload) => client.post('/matches', payload).then(({ data }) => data),
   listMatches: () => client.get('/matches').then(({ data }) => data),
@@ -69,6 +75,8 @@ export const api = {
 
   listMemberPracticeSessions: () => client.get('/member/practice-sessions').then(({ data }) => data),
   listMemberTournaments: () => client.get('/member/tournaments').then(({ data }) => data),
+  getMemberProfile: () => client.get('/member/profile').then(({ data }) => data),
+  updateMemberProfile: (payload) => client.put('/member/profile', payload).then(({ data }) => data),
   signUpForPractice: (sessionId) => client.post(`/member/practice-sessions/${sessionId}/signup`).then(({ data }) => data),
   signUpForTournament: (tournamentId) => client.post(`/member/tournaments/${tournamentId}/signup`).then(({ data }) => data)
 };

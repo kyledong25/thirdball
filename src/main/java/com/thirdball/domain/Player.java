@@ -35,6 +35,18 @@ public class Player {
     @Column(name = "provisional_match_count", nullable = false)
     private int provisionalMatchCount;
 
+    @Column(name = "graduation_year")
+    private Integer graduationYear;
+
+    @Column(name = "skill_level", length = 30)
+    private String skillLevel;
+
+    @Column(length = 30)
+    private String phone;
+
+    @Column(name = "dues_paid", nullable = false)
+    private boolean duesPaid;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -70,6 +82,14 @@ public class Player {
     public void setRatingEstablished(boolean ratingEstablished) { this.ratingEstablished = ratingEstablished; }
     public int getProvisionalMatchCount() { return provisionalMatchCount; }
     public void setProvisionalMatchCount(int provisionalMatchCount) { this.provisionalMatchCount = provisionalMatchCount; }
+    public Integer getGraduationYear() { return graduationYear; }
+    public void setGraduationYear(Integer graduationYear) { this.graduationYear = graduationYear; }
+    public String getSkillLevel() { return skillLevel; }
+    public void setSkillLevel(String skillLevel) { this.skillLevel = skillLevel; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public boolean isDuesPaid() { return duesPaid; }
+    public void setDuesPaid(boolean duesPaid) { this.duesPaid = duesPaid; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public Instant getCreatedAt() { return createdAt; }

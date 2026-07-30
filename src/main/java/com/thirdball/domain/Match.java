@@ -25,12 +25,12 @@ public class Match {
     @JoinColumn(name = "tournament_id")
     private Tournament tournament;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "player_one_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "player_one_id")
     private Player playerOne;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "player_two_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "player_two_id")
     private Player playerTwo;
 
     @ManyToOne(fetch = FetchType.LAZY)
