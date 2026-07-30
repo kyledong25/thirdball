@@ -7,6 +7,7 @@ import com.thirdball.api.response.TournamentResponse;
 import com.thirdball.service.MatchService;
 import com.thirdball.service.TournamentService;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,6 +21,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/tournaments")
+@PreAuthorize("hasRole('ADMIN')")
 public class TournamentController {
     private final TournamentService tournamentService;
     private final MatchService matchService;

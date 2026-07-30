@@ -10,6 +10,8 @@ import javax.persistence.LockModeType;
 import java.util.Optional;
 
 public interface PlayerRepository extends JpaRepository<Player, Long> {
+    Optional<Player> findByEmail(String email);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from Player p where p.id = :id")
     Optional<Player> findByIdForUpdate(@Param("id") Long id);

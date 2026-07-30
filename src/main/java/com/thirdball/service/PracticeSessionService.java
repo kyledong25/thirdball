@@ -47,6 +47,16 @@ public class PracticeSessionService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<PracticeSessionResponse> listUpcoming() {
+        Instant now = Instant.now();
+        return practiceSessionRepository.findAll().stream()
+                .filter(session -> session.getEndsAt().isAfter(now))
+                .sorted((first, second) -> first.getStartsAt().compareTo(second.getStartsAt()))
+                .map(PracticeSessionResponse::from)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public PracticeSessionResponse registerPlayer(Long sessionId, Long playerId) {
         // Locking the session serializes capacity checks, preventing an overbooked block.

@@ -1,6 +1,7 @@
 package com.thirdball.service;
 
 import com.thirdball.api.request.CreatePlayerRequest;
+import com.thirdball.api.request.UpdatePlayerRatingRequest;
 import com.thirdball.api.response.PlayerResponse;
 import com.thirdball.domain.Player;
 import com.thirdball.repository.PlayerRepository;
@@ -33,5 +34,15 @@ public class PlayerService {
     @Transactional(readOnly = true)
     public List<PlayerResponse> list() {
         return playerRepository.findAll().stream().map(PlayerResponse::from).collect(Collectors.toList());
+    }
+
+    /** Administrator override; a manually rated player becomes established. */
+    @Transactional
+    public PlayerResponse updateRating(Long playerId, UpdatePlayerRatingRequest request) {
+        Player player = playerRepository.findByIdForUpdate(playerId)
+                .orElseThrow(() -> new com.thirdball.exception.NotFoundException("Player " + playerId + " was not found"));
+        player.setRating(request.getRating());
+        player.setRatingEstablished(true);
+        return PlayerResponse.from(player);
     }
 }

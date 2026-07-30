@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.Instant;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,6 +43,16 @@ public class TournamentService {
     @Transactional(readOnly = true)
     public List<TournamentResponse> list() {
         return tournamentRepository.findAll().stream()
+                .map(TournamentResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TournamentResponse> listUpcoming() {
+        Instant now = Instant.now();
+        return tournamentRepository.findAll().stream()
+                .filter(tournament -> tournament.getEndsAt().isAfter(now))
+                .sorted((first, second) -> first.getStartsAt().compareTo(second.getStartsAt()))
                 .map(TournamentResponse::from)
                 .collect(Collectors.toList());
     }

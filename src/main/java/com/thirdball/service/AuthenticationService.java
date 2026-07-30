@@ -1,0 +1,80 @@
+package com.thirdball.service;
+
+import com.thirdball.api.request.RegisterMemberRequest;
+import com.thirdball.api.response.AuthenticatedUserResponse;
+import com.thirdball.domain.ClubRole;
+import com.thirdball.domain.ClubUser;
+import com.thirdball.domain.Player;
+import com.thirdball.exception.ConflictException;
+import com.thirdball.exception.NotFoundException;
+import com.thirdball.repository.ClubUserRepository;
+import com.thirdball.repository.PlayerRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Locale;
+
+/** Creates member accounts and resolves the authenticated account's player. */
+@Service
+public class AuthenticationService {
+    private final ClubUserRepository clubUserRepository;
+    private final PlayerRepository playerRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    public AuthenticationService(ClubUserRepository clubUserRepository, PlayerRepository playerRepository,
+                                 PasswordEncoder passwordEncoder) {
+        this.clubUserRepository = clubUserRepository;
+        this.playerRepository = playerRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Transactional
+    public AuthenticatedUserResponse registerMember(RegisterMemberRequest request) {
+        String email = normalizeEmail(request.getEmail());
+        if (clubUserRepository.findByEmail(email).isPresent()) {
+            throw new ConflictException("An account with that email already exists");
+        }
+
+        Player player = playerRepository.findByEmail(email).orElseGet(() -> {
+            Player newPlayer = new Player();
+            newPlayer.setDisplayName(request.getDisplayName().trim());
+            newPlayer.setEmail(email);
+            return playerRepository.save(newPlayer);
+        });
+        if (clubUserRepository.existsByPlayer_Id(player.getId())) {
+            throw new ConflictException("That player record is already linked to an account");
+        }
+
+        ClubUser user = new ClubUser();
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setRole(ClubRole.MEMBER);
+        user.setPlayer(player);
+        return AuthenticatedUserResponse.from(clubUserRepository.save(user));
+    }
+
+    @Transactional(readOnly = true)
+    public AuthenticatedUserResponse currentUser(Authentication authentication) {
+        return AuthenticatedUserResponse.from(findByEmail(authentication.getName()));
+    }
+
+    @Transactional(readOnly = true)
+    public Player currentMemberPlayer(Authentication authentication) {
+        ClubUser user = findByEmail(authentication.getName());
+        if (user.getRole() != ClubRole.MEMBER || user.getPlayer() == null) {
+            throw new NotFoundException("This member account is not linked to a player record");
+        }
+        return user.getPlayer();
+    }
+
+    private ClubUser findByEmail(String email) {
+        return clubUserRepository.findByEmail(normalizeEmail(email))
+                .orElseThrow(() -> new NotFoundException("Authenticated account was not found"));
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
+    }
+}

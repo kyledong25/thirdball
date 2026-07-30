@@ -24,3 +24,8 @@ app:
   cors:
     # Comma-separated origins; override with CORS_ALLOWED_ORIGINS in production.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+  bootstrap-admin:
+    # Local development can opt in with environment variables; production uses
+    # the same variables through application-prod.properties.
+    email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}

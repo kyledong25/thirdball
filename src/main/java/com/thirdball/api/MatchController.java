@@ -5,6 +5,7 @@ import com.thirdball.api.request.SubmitMatchResultRequest;
 import com.thirdball.api.response.MatchResponse;
 import com.thirdball.service.MatchService;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +18,7 @@ import javax.validation.Valid;
 
 @RestController
 @RequestMapping("/api/matches")
+@PreAuthorize("hasRole('ADMIN')")
 public class MatchController {
     private final MatchService matchService;
 

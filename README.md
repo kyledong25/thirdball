@@ -169,6 +169,23 @@ New players start **unrated**. Their first five completed results must be agains
 
 The newly established player uses the standard chart from their next match forward. The service locks both player rows in a consistent order and the match row before applying the calculation, so concurrent score submissions cannot overwrite a rating change or score the same match twice.
 
+## Role-based access control
+
+Flyway migration `V6` adds a `club_users` account table with a unique email, BCrypt password hash, `ADMIN` or `MEMBER` role, and an optional one-to-one link to `players`. Existing player records are retained unchanged. Member registration reuses a matching player email when one exists, or creates a new unrated player record.
+
+| Route | Role | Purpose |
+| --- | --- | --- |
+| `POST /api/auth/register` | Public | Create a MEMBER account and linked player record. |
+| `GET /api/auth/me` | Authenticated | Return the current account and role. |
+| `GET /api/member/practice-sessions` | MEMBER | List upcoming practice sessions. |
+| `GET /api/member/tournaments` | MEMBER | List upcoming tournaments. |
+| `POST /api/member/practice-sessions/{id}/signup` | MEMBER | Register the authenticated member for practice. |
+| `POST /api/member/tournaments/{id}/signup` | MEMBER | Register the authenticated member for a tournament. |
+| `PUT /api/players/{id}/rating` | ADMIN | Correct a player's rating and mark them established. |
+| Existing `/api/players`, `/api/matches`, `/api/tournaments`, and `/api/practice-sessions` routes | ADMIN | Club operations dashboard. |
+
+The web client uses HTTP Basic authentication over the existing HTTPS deployment and keeps the authorization value only in browser session storage. Configure the first administrator through Render's environment variables before deploying. After the first `ADMIN` account is created, the bootstrap password is ignored.
+
 ## Deployment checklist
 
 Third Ball is configured for a Supabase + Render + Vercel deployment. No database credential belongs in the frontend or the repository.
@@ -179,6 +196,8 @@ Third Ball is configured for a Supabase + Render + Vercel deployment. No databas
    DB_URL=jdbc:postgresql://<supabase-host>:5432/postgres?sslmode=require
    DB_USERNAME=<supabase-connection-user>
    DB_PASSWORD=<supabase-database-password>
+   BOOTSTRAP_ADMIN_EMAIL=<administrator-email>
+   BOOTSTRAP_ADMIN_PASSWORD=<administrator-password-at-least-12-characters>
    CORS_ALLOWED_ORIGINS=https://<your-vercel-project>.vercel.app
    ```
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, errorMessage } from './api';
+import { api, clearAuth, errorMessage, restoreAuth } from './api';
 import clubLogo from './assets/tamu-table-tennis-club-logo.webp';
 import { addDays, byRating, formatDateTime, formatRange, isRatingEstablished, playerRatingLabel, toDateTimeInput, toIso } from './utils';
 
@@ -11,6 +11,37 @@ const navigation = [
 ];
 
 function App() {
+  const [account, setAccount] = useState(null);
+  const [checkingAuthentication, setCheckingAuthentication] = useState(true);
+
+  useEffect(() => {
+    if (!restoreAuth()) {
+      setCheckingAuthentication(false);
+      return;
+    }
+    api.currentUser()
+      .then(setAccount)
+      .catch(() => clearAuth())
+      .finally(() => setCheckingAuthentication(false));
+  }, []);
+
+  function signOut() {
+    clearAuth();
+    setAccount(null);
+  }
+
+  if (checkingAuthentication) {
+    return <div className="auth-shell"><p className="loading-copy">Checking your club account…</p></div>;
+  }
+  if (!account) {
+    return <AuthenticationGate onAuthenticated={setAccount} />;
+  }
+  return account.role === 'ADMIN'
+    ? <AdminApp account={account} onSignOut={signOut} />
+    : <MemberApp account={account} onSignOut={signOut} />;
+}
+
+function AdminApp({ account, onSignOut }) {
   const [view, setView] = useState('dashboard');
   const [players, setPlayers] = useState([]);
   const [tournaments, setTournaments] = useState([]);
@@ -54,6 +85,9 @@ function App() {
 
   const actions = useMemo(() => ({
     createPlayer: (payload) => perform(() => api.createPlayer(payload), 'Player added to the club ladder.'),
+    updatePlayerRating: (playerId, rating) => perform(
+      () => api.updatePlayerRating(playerId, rating),
+      'Member rating updated. The player is now established.'),
     recordLadderMatch: async ({ playerOneId, playerTwoId, playerOneScore, playerTwoScore }) => {
       try {
         const match = await api.createMatch({ playerOneId, playerTwoId, roundNumber: 1 });
@@ -90,10 +124,11 @@ function App() {
           </div>
         </div>
         <div className="topbar-actions">
-          <span className="live-indicator"><span /> Club system online</span>
+          <span className="role-chip">Administrator · {account.displayName}</span>
           <button className="button button-quiet" onClick={refreshData} disabled={loading}>
             {loading ? 'Syncing…' : 'Refresh'}
           </button>
+          <button className="button button-quiet" onClick={onSignOut}>Sign out</button>
         </div>
       </header>
 
@@ -126,6 +161,140 @@ function App() {
         </main>
       </div>
     </div>
+  );
+}
+
+function AuthenticationGate({ onAuthenticated }) {
+  const [mode, setMode] = useState('login');
+  const [form, setForm] = useState({ displayName: '', email: '', password: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(event) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError('');
+    try {
+      if (mode === 'register') {
+        await api.registerMember(form);
+      }
+      const account = await api.login(form.email, form.password);
+      onAuthenticated(account);
+    } catch (requestError) {
+      setError(errorMessage(requestError));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="auth-shell">
+      <section className="auth-card">
+        <div className="auth-brand">
+          <img src={clubLogo} alt="Texas A&M University Table Tennis Club logo" />
+          <div><p className="eyebrow">Texas A&amp;M University</p><h1>TAMU Table Tennis</h1></div>
+        </div>
+        <p className="eyebrow">{mode === 'login' ? 'Member access' : 'Join the club'}</p>
+        <h2>{mode === 'login' ? 'Sign in to your club view' : 'Create your member account'}</h2>
+        <p>{mode === 'login'
+          ? 'Administrators enter the club operations desk. Members see their upcoming events and personal sign-up actions.'
+          : 'New accounts are created as members and linked to your club player record.'}</p>
+        {error && <div className="inline-error">{error}</div>}
+        <form onSubmit={submit}>
+          {mode === 'register' && <label>Full name<input required maxLength="100" value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} /></label>}
+          <label>Email<input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
+          <label>Password<input required type="password" minLength="12" maxLength="72" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /></label>
+          <button className="button button-primary" disabled={submitting}>{submitting ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create member account'}</button>
+        </form>
+        <button className="text-button auth-switch" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>
+          {mode === 'login' ? 'Need a member account? Register →' : 'Already have an account? Sign in →'}
+        </button>
+      </section>
+    </main>
+  );
+}
+
+function MemberApp({ account, onSignOut }) {
+  const [practiceSessions, setPracticeSessions] = useState([]);
+  const [tournaments, setTournaments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState(null);
+  const [signingUpFor, setSigningUpFor] = useState('');
+
+  const refreshEvents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [nextPracticeSessions, nextTournaments] = await Promise.all([
+        api.listMemberPracticeSessions(),
+        api.listMemberTournaments()
+      ]);
+      setPracticeSessions(nextPracticeSessions);
+      setTournaments(nextTournaments);
+    } catch (error) {
+      setNotice({ type: 'error', text: errorMessage(error) });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { refreshEvents(); }, [refreshEvents]);
+
+  async function signUp(kind, id) {
+    const key = `${kind}-${id}`;
+    setSigningUpFor(key);
+    try {
+      if (kind === 'practice') await api.signUpForPractice(id);
+      else await api.signUpForTournament(id);
+      await refreshEvents();
+      setNotice({ type: 'success', text: `You are signed up for the ${kind}.` });
+    } catch (error) {
+      setNotice({ type: 'error', text: errorMessage(error) });
+    } finally {
+      setSigningUpFor('');
+    }
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="brand" aria-label="TAMU Table Tennis Club home">
+          <span className="brand-logo"><img src={clubLogo} alt="Texas A&M University Table Tennis Club logo" /></span>
+          <div><p className="eyebrow">Texas A&amp;M University · College Station</p><h1>TAMU Table Tennis</h1></div>
+        </div>
+        <div className="topbar-actions">
+          <span className="role-chip">Member · {account.displayName}</span>
+          <button className="button button-quiet" onClick={refreshEvents} disabled={loading}>{loading ? 'Syncing…' : 'Refresh'}</button>
+          <button className="button button-quiet" onClick={onSignOut}>Sign out</button>
+        </div>
+      </header>
+      <main className="member-content">
+        {notice && <Notice notice={notice} onClose={() => setNotice(null)} />}
+        <PageIntro eyebrow="Member event desk" title="Your next time at the table.">
+          Browse upcoming practices and tournaments, then sign yourself up with one click.
+        </PageIntro>
+        <section className="member-events">
+          <EventSchedule title="Upcoming practices" events={practiceSessions} kind="practice" signingUpFor={signingUpFor} onSignUp={signUp} />
+          <EventSchedule title="Upcoming tournaments" events={tournaments} kind="tournament" signingUpFor={signingUpFor} onSignUp={signUp} />
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function EventSchedule({ title, events, kind, signingUpFor, onSignUp }) {
+  return (
+    <section className="panel member-event-panel">
+      <div className="panel-heading"><div><p className="eyebrow">{kind === 'practice' ? 'Practice schedule' : 'Tournament calendar'}</p><h3>{title}</h3></div><span className="count-chip">{events.length} upcoming</span></div>
+      {events.length ? <div className="member-event-list">{events.map((event) => {
+        const eventName = kind === 'practice' ? event.title : event.name;
+        const capacity = kind === 'practice' ? event.capacity : event.maxParticipants;
+        const signUpKey = `${kind}-${event.id}`;
+        return <article className="member-event" key={event.id}>
+          <div><p className="eyebrow">{event.location || 'Location TBA'}</p><h4>{eventName}</h4><p>{formatRange(event.startsAt, event.endsAt)}</p><small>{event.registeredCount}/{capacity} registered</small></div>
+          <button className="button button-primary" disabled={signingUpFor === signUpKey} onClick={() => onSignUp(kind, event.id)}>{signingUpFor === signUpKey ? 'Signing up…' : 'Sign up'}</button>
+        </article>;
+      })}</div> : <EmptyState compact text={`No upcoming ${kind === 'practice' ? 'practices' : 'tournaments'} have been posted.`} />}
+    </section>
   );
 }
 
@@ -253,6 +422,7 @@ function PlayersAndLadder({ players, actions }) {
         <PlayerForm onSubmit={actions.createPlayer} />
         <LadderMatchForm players={orderedPlayers} onSubmit={actions.recordLadderMatch} />
       </section>
+      <AdminRatingEditor players={orderedPlayers} onSubmit={actions.updatePlayerRating} />
       <section className="panel table-panel">
         <div className="panel-heading">
           <div>
@@ -349,6 +519,44 @@ function RatingResult({ result }) {
         ? 'Provisional rating finalized. Future matches now use the USATT exchange chart.'
         : 'Provisional result recorded. A starting rating is calculated after five matches against rated players.'}</p>}
     </div>
+  );
+}
+
+function AdminRatingEditor({ players, onSubmit }) {
+  const [playerId, setPlayerId] = useState('');
+  const [rating, setRating] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  function selectPlayer(nextPlayerId) {
+    setPlayerId(nextPlayerId);
+    const player = players.find((candidate) => String(candidate.id) === String(nextPlayerId));
+    setRating(player ? String(player.rating) : '');
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    setSubmitting(true);
+    const result = await onSubmit(Number(playerId), Number(rating));
+    if (result) {
+      setPlayerId(String(result.id));
+      setRating(String(result.rating));
+    }
+    setSubmitting(false);
+  }
+
+  return (
+    <section className="panel form-panel admin-rating-editor">
+      <p className="eyebrow">Administrator action</p>
+      <h3>Correct a member rating</h3>
+      <form onSubmit={submit}>
+        <div className="form-grid">
+          <label>Member<PlayerSelect required players={players} value={playerId} onChange={selectPlayer} placeholder="Choose member" /></label>
+          <label>New rating<input required type="number" value={rating} onChange={(event) => setRating(event.target.value)} /></label>
+        </div>
+        <p className="form-hint">This direct correction marks an unrated member as established.</p>
+        <button className="button button-secondary" disabled={submitting || !playerId || rating === ''}>{submitting ? 'Saving…' : 'Save rating'}</button>
+      </form>
+    </section>
   );
 }
 
