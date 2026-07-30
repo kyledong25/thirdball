@@ -74,13 +74,42 @@ public class MatchService {
     public MatchResponse recordResult(Long matchId, SubmitMatchResultRequest request) {
         Match match = matchRepository.findByIdForUpdate(matchId)
                 .orElseThrow(() -> new NotFoundException("Match " + matchId + " was not found"));
+        return MatchResponse.from(completeScheduledMatch(match, request.getPlayerOneScore(), request.getPlayerTwoScore()));
+    }
+
+    /**
+     * Creates and completes a ladder match after its two member participants
+     * have agreed on the result. It intentionally uses the exact same rating
+     * and provisional logic as an administrator-recorded match.
+     */
+    @Transactional
+    public Match recordConfirmedMemberResult(Long playerOneId, Long playerTwoId,
+                                             Integer playerOneScore, Integer playerTwoScore) {
+        if (playerOneId.equals(playerTwoId)) {
+            throw new IllegalArgumentException("A match requires two distinct players");
+        }
+        Player playerOne = findPlayer(playerOneId);
+        Player playerTwo = findPlayer(playerTwoId);
+        if (!playerOne.isActive() || !playerTwo.isActive()) {
+            throw new ConflictException("Inactive players cannot be scheduled for a match");
+        }
+
+        Match match = new Match();
+        match.setPlayerOne(playerOne);
+        match.setPlayerTwo(playerTwo);
+        match.setRoundNumber(1);
+        matchRepository.saveAndFlush(match);
+        return completeScheduledMatch(match, playerOneScore, playerTwoScore);
+    }
+
+    private Match completeScheduledMatch(Match match, Integer playerOneScore, Integer playerTwoScore) {
         if (match.getStatus() != MatchStatus.SCHEDULED) {
             throw new ConflictException("A result can only be submitted once for a scheduled match");
         }
         if (match.getPlayerOne() == null || match.getPlayerTwo() == null) {
             throw new ConflictException("This bracket match is awaiting a player from an earlier round");
         }
-        if (request.getPlayerOneScore().equals(request.getPlayerTwoScore())) {
+        if (playerOneScore.equals(playerTwoScore)) {
             throw new IllegalArgumentException("Table tennis matches cannot end in a tie");
         }
 
@@ -102,10 +131,10 @@ public class MatchService {
         match.setPlayerTwo(playerTwo);
         match.setPlayerOneRatingBefore(playerOne.isRatingEstablished() ? playerOne.getRating() : null);
         match.setPlayerTwoRatingBefore(playerTwo.isRatingEstablished() ? playerTwo.getRating() : null);
-        match.setPlayerOneScore(request.getPlayerOneScore());
-        match.setPlayerTwoScore(request.getPlayerTwoScore());
+        match.setPlayerOneScore(playerOneScore);
+        match.setPlayerTwoScore(playerTwoScore);
 
-        boolean playerOneWon = request.getPlayerOneScore() > request.getPlayerTwoScore();
+        boolean playerOneWon = playerOneScore > playerTwoScore;
         Player winner = playerOneWon ? playerOne : playerTwo;
         match.setWinner(winner);
         match.setStatus(MatchStatus.COMPLETED);
@@ -119,7 +148,7 @@ public class MatchService {
 
         advanceTournamentWinner(match, winner);
 
-        return MatchResponse.from(match);
+        return match;
     }
 
     /**

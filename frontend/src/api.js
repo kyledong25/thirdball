@@ -78,6 +78,10 @@ export const api = {
   getMemberProfile: () => client.get('/member/profile').then(({ data }) => data),
   getMemberRatingHistory: () => client.get('/member/rating-history').then(({ data }) => data),
   listMemberLadder: () => client.get('/member/ladder').then(({ data }) => data),
+  listMemberMatchResults: () => client.get('/member/match-results').then(({ data }) => data),
+  proposeMemberMatchResult: (payload) => client.post('/member/match-results', payload).then(({ data }) => data),
+  agreeMemberMatchResult: (proposalId) => client.post(`/member/match-results/${proposalId}/agree`).then(({ data }) => data),
+  declineMemberMatchResult: (proposalId) => client.post(`/member/match-results/${proposalId}/decline`).then(({ data }) => data),
   updateMemberProfile: (payload) => client.put('/member/profile', payload).then(({ data }) => data),
   signUpForPractice: (sessionId) => client.post(`/member/practice-sessions/${sessionId}/signup`).then(({ data }) => data),
   signUpForTournament: (tournamentId) => client.post(`/member/tournaments/${tournamentId}/signup`).then(({ data }) => data)

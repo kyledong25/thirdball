@@ -239,6 +239,7 @@ function MemberApp({ account, onSignOut }) {
   const [profile, setProfile] = useState(null);
   const [ratingHistory, setRatingHistory] = useState([]);
   const [ladder, setLadder] = useState([]);
+  const [matchResultRequests, setMatchResultRequests] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
@@ -247,12 +248,13 @@ function MemberApp({ account, onSignOut }) {
   const refreshEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextPracticeSessions, nextTournaments, nextProfile, nextRatingHistory, nextLadder, nextCalendarEvents] = await Promise.all([
+      const [nextPracticeSessions, nextTournaments, nextProfile, nextRatingHistory, nextLadder, nextMatchResultRequests, nextCalendarEvents] = await Promise.all([
         api.listMemberPracticeSessions(),
         api.listMemberTournaments(),
         api.getMemberProfile(),
         api.getMemberRatingHistory(),
         api.listMemberLadder(),
+        api.listMemberMatchResults(),
         api.listCalendar()
       ]);
       setPracticeSessions(nextPracticeSessions);
@@ -260,6 +262,7 @@ function MemberApp({ account, onSignOut }) {
       setProfile(nextProfile);
       setRatingHistory(nextRatingHistory);
       setLadder(nextLadder);
+      setMatchResultRequests(nextMatchResultRequests);
       setCalendarEvents(nextCalendarEvents);
     } catch (error) {
       setNotice({ type: 'error', text: errorMessage(error) });
@@ -297,6 +300,34 @@ function MemberApp({ account, onSignOut }) {
     }
   }
 
+  async function proposeMatchResult(payload) {
+    try {
+      const result = await api.proposeMemberMatchResult(payload);
+      await refreshEvents();
+      setNotice({ type: 'success', text: 'Result sent to your opponent for confirmation.' });
+      return result;
+    } catch (error) {
+      setNotice({ type: 'error', text: errorMessage(error) });
+      return null;
+    }
+  }
+
+  async function respondToMatchResult(proposalId, response) {
+    try {
+      const result = response === 'agree'
+        ? await api.agreeMemberMatchResult(proposalId)
+        : await api.declineMemberMatchResult(proposalId);
+      await refreshEvents();
+      setNotice({ type: 'success', text: response === 'agree'
+        ? 'Result agreed. The official match and rating update are now recorded.'
+        : 'Result request declined. No rating changes were made.' });
+      return result;
+    } catch (error) {
+      setNotice({ type: 'error', text: errorMessage(error) });
+      return null;
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -323,10 +354,78 @@ function MemberApp({ account, onSignOut }) {
           <EventSchedule title="Upcoming practices" events={practiceSessions} kind="practice" signingUpFor={signingUpFor} onSignUp={signUp} />
           <EventSchedule title="Upcoming tournaments" events={tournaments} kind="tournament" signingUpFor={signingUpFor} onSignUp={signUp} />
         </section>
+        <MemberMatchResultDesk profile={profile} players={ladder} requests={matchResultRequests} onPropose={proposeMatchResult} onRespond={respondToMatchResult} />
         <MemberLadder players={ladder} currentPlayerId={profile?.id} />
         <section className="member-calendar"><CalendarView events={calendarEvents} compact /></section>
       </main>
     </div>
+  );
+}
+
+function MemberMatchResultDesk({ profile, players, requests, onPropose, onRespond }) {
+  const [form, setForm] = useState({ opponentId: '', reporterScore: '3', opponentScore: '0' });
+  const [proposing, setProposing] = useState(false);
+  const [respondingId, setRespondingId] = useState('');
+  const currentPlayerId = profile?.id;
+  const opponents = players.filter((player) => String(player.id) !== String(currentPlayerId));
+  const incoming = requests.filter((request) => request.status === 'PENDING'
+    && String(request.opponentId) === String(currentPlayerId));
+
+  async function submit(event) {
+    event.preventDefault();
+    setProposing(true);
+    const result = await onPropose({
+      opponentId: Number(form.opponentId),
+      reporterScore: Number(form.reporterScore),
+      opponentScore: Number(form.opponentScore)
+    });
+    if (result) setForm({ opponentId: '', reporterScore: '3', opponentScore: '0' });
+    setProposing(false);
+  }
+
+  async function respond(proposalId, response) {
+    setRespondingId(`${proposalId}-${response}`);
+    await onRespond(proposalId, response);
+    setRespondingId('');
+  }
+
+  return (
+    <section className="member-match-workspace">
+      <section className="panel member-result-form">
+        <div className="panel-heading"><div><p className="eyebrow">Member ladder match</p><h3>Report a result</h3></div></div>
+        <p className="form-hint">Your opponent must agree before a match becomes official and changes either rating.</p>
+        {profile && opponents.length ? <form onSubmit={submit}>
+          <label>Opponent<PlayerSelect required players={opponents} value={form.opponentId} onChange={(opponentId) => setForm({ ...form, opponentId })} placeholder="Choose opponent" /></label>
+          <div className="score-inputs">
+            <label>Your games<input required type="number" min="0" value={form.reporterScore} onChange={(event) => setForm({ ...form, reporterScore: event.target.value })} /></label>
+            <label>Opponent games<input required type="number" min="0" value={form.opponentScore} onChange={(event) => setForm({ ...form, opponentScore: event.target.value })} /></label>
+          </div>
+          <button className="button button-primary" disabled={proposing || !form.opponentId}>{proposing ? 'Sending…' : 'Send for agreement'}</button>
+        </form> : <EmptyState compact text="At least one other active ladder member is needed to report a result." />}
+      </section>
+      <section className="panel member-result-requests">
+        <div className="panel-heading"><div><p className="eyebrow">Result confirmation</p><h3>Match requests</h3></div><span className="count-chip">{incoming.length} need you</span></div>
+        <p className="form-hint">Only you can answer a result submitted against your player record.</p>
+        {requests.length ? <div className="member-result-list">{requests.map((request) => {
+          const needsYourAgreement = request.status === 'PENDING' && String(request.opponentId) === String(currentPlayerId);
+          const youReported = String(request.reporterId) === String(currentPlayerId);
+          const statusText = request.status === 'PENDING'
+            ? (needsYourAgreement ? 'Your agreement needed' : `Waiting for ${request.opponentName}`)
+            : request.status === 'AGREED' ? 'Official match recorded' : 'Request declined';
+          return <article className={`member-result-request is-${request.status.toLowerCase()}`} key={request.id}>
+            <div>
+              <p className="eyebrow">{statusText}</p>
+              <h4>{request.reporterName} <span>{request.reporterScore}–{request.opponentScore}</span> {request.opponentName}</h4>
+              <small>{youReported ? 'You sent this result' : `Sent ${formatDateTime(request.proposedAt)}`}{request.officialMatchId && ` · Official match #${request.officialMatchId}`}</small>
+            </div>
+            {needsYourAgreement && <div className="result-request-actions">
+              <button className="button button-primary" disabled={Boolean(respondingId)} onClick={() => respond(request.id, 'agree')}>{respondingId === `${request.id}-agree` ? 'Agreeing…' : 'Agree'}</button>
+              <button className="button button-secondary" disabled={Boolean(respondingId)} onClick={() => respond(request.id, 'decline')}>{respondingId === `${request.id}-decline` ? 'Declining…' : 'Decline'}</button>
+            </div>}
+          </article>;
+        })}</div> : <EmptyState compact text="Submitted member results will appear here for review." />}
+      </section>
+    </section>
   );
 }
 

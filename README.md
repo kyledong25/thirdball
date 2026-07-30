@@ -9,7 +9,7 @@
 ## Highlights
 
 - **USATT rating ladder:** New players complete a five-match provisional phase before receiving a rating; established-player results follow the fixed USATT point-exchange chart, retain before/after ratings, and can be safely invalidated by an administrator.
-- **Role-based dashboards:** Administrators manage the ladder, dues, events, generated brackets, and result review; members maintain their own profile, view rating progress, and sign up for club events.
+- **Role-based dashboards:** Administrators manage the ladder, dues, events, generated brackets, and result review; members maintain their own profile, view rating progress, sign up for club events, and mutually confirm ladder results.
 - **Tournament desk:** Register the field, generate a rating-seeded single-elimination bracket with automatic byes, record results, and advance winners automatically.
 - **Practice operations and global calendar:** Publish single- or multi-day blocks, enforce capacity, and show one combined schedule of practices and tournaments.
 - **Built for a real club:** PostgreSQL transactions and pessimistic locks protect rating updates and capacity checks when many members act at once.
@@ -185,6 +185,8 @@ Flyway migration `V6` adds a `club_users` account table with a unique email, BCr
 | `GET /api/member/profile` / `PUT /api/member/profile` | MEMBER | Read or update graduation year, skill level, and phone number. |
 | `GET /api/member/rating-history` | MEMBER | Read the member's chart-ready rating series from completed result snapshots. |
 | `GET /api/member/ladder` | MEMBER | Read the active global ladder, limited to rank, player name, and rating information. |
+| `GET`, `POST /api/member/match-results` | MEMBER | Read personal result requests or send a score report to an opponent for confirmation. |
+| `POST /api/member/match-results/{id}/agree` / `decline` | MEMBER | The named opponent accepts to create the rated official match, or declines the request. |
 | `POST /api/member/practice-sessions/{id}/signup` | MEMBER | Register the authenticated member for practice. |
 | `POST /api/member/tournaments/{id}/signup` | MEMBER | Register the authenticated member for a tournament. |
 | `PUT /api/players/{id}/rating` | ADMIN | Correct a player's rating and mark them established. |

@@ -74,6 +74,24 @@ class MatchServiceTest {
         assertEquals(1190, playerTwo.getRating());
     }
 
+    @Test
+    void createsOfficialMemberMatchWithTheNormalRatingCalculation() {
+        Player playerOne = establishedPlayer(1L, 1200);
+        Player playerTwo = establishedPlayer(2L, 1200);
+        when(playerRepository.findById(1L)).thenReturn(Optional.of(playerOne));
+        when(playerRepository.findById(2L)).thenReturn(Optional.of(playerTwo));
+        when(playerRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(playerOne));
+        when(playerRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(playerTwo));
+        when(matchRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(Match.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Match match = matchService.recordConfirmedMemberResult(1L, 2L, 3, 1);
+
+        assertEquals(MatchStatus.COMPLETED, match.getStatus());
+        assertEquals(1208, playerOne.getRating());
+        assertEquals(1192, playerTwo.getRating());
+    }
+
     private Match completedMatch(Player playerOne, Player playerTwo) {
         Match match = new Match();
         ReflectionTestUtils.setField(match, "id", 100L);

@@ -2,16 +2,20 @@ package com.thirdball.api;
 
 import com.thirdball.api.response.PracticeSessionResponse;
 import com.thirdball.api.response.LadderPlayerResponse;
+import com.thirdball.api.response.MemberMatchResultProposalResponse;
 import com.thirdball.api.response.PlayerResponse;
 import com.thirdball.api.response.RatingHistoryPointResponse;
 import com.thirdball.api.response.TournamentResponse;
 import com.thirdball.api.request.UpdateMemberProfileRequest;
+import com.thirdball.api.request.ProposeMemberMatchResultRequest;
 import com.thirdball.domain.Player;
 import com.thirdball.service.AuthenticationService;
 import com.thirdball.service.MemberLadderService;
+import com.thirdball.service.MemberMatchResultService;
 import com.thirdball.service.PracticeSessionService;
 import com.thirdball.service.MemberRatingHistoryService;
 import com.thirdball.service.TournamentService;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -35,17 +40,20 @@ public class MemberController {
     private final TournamentService tournamentService;
     private final MemberRatingHistoryService memberRatingHistoryService;
     private final MemberLadderService memberLadderService;
+    private final MemberMatchResultService memberMatchResultService;
 
     public MemberController(AuthenticationService authenticationService,
                             PracticeSessionService practiceSessionService,
                             TournamentService tournamentService,
                             MemberRatingHistoryService memberRatingHistoryService,
-                            MemberLadderService memberLadderService) {
+                            MemberLadderService memberLadderService,
+                            MemberMatchResultService memberMatchResultService) {
         this.authenticationService = authenticationService;
         this.practiceSessionService = practiceSessionService;
         this.tournamentService = tournamentService;
         this.memberRatingHistoryService = memberRatingHistoryService;
         this.memberLadderService = memberLadderService;
+        this.memberMatchResultService = memberMatchResultService;
     }
 
     @GetMapping("/practice-sessions")
@@ -77,6 +85,28 @@ public class MemberController {
     @GetMapping("/ladder")
     public List<LadderPlayerResponse> ladder() {
         return memberLadderService.list();
+    }
+
+    @GetMapping("/match-results")
+    public List<MemberMatchResultProposalResponse> matchResults(Authentication authentication) {
+        return memberMatchResultService.listFor(authenticationService.currentMemberPlayer(authentication));
+    }
+
+    @PostMapping("/match-results")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MemberMatchResultProposalResponse proposeMatchResult(
+            @Valid @RequestBody ProposeMemberMatchResultRequest request, Authentication authentication) {
+        return memberMatchResultService.propose(authenticationService.currentMemberPlayer(authentication), request);
+    }
+
+    @PostMapping("/match-results/{proposalId}/agree")
+    public MemberMatchResultProposalResponse agreeMatchResult(@PathVariable Long proposalId, Authentication authentication) {
+        return memberMatchResultService.agree(proposalId, authenticationService.currentMemberPlayer(authentication));
+    }
+
+    @PostMapping("/match-results/{proposalId}/decline")
+    public MemberMatchResultProposalResponse declineMatchResult(@PathVariable Long proposalId, Authentication authentication) {
+        return memberMatchResultService.decline(proposalId, authenticationService.currentMemberPlayer(authentication));
     }
 
     @PostMapping("/practice-sessions/{sessionId}/signup")
