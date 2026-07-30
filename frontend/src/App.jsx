@@ -238,6 +238,7 @@ function MemberApp({ account, onSignOut }) {
   const [tournaments, setTournaments] = useState([]);
   const [profile, setProfile] = useState(null);
   const [ratingHistory, setRatingHistory] = useState([]);
+  const [ladder, setLadder] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
@@ -246,17 +247,19 @@ function MemberApp({ account, onSignOut }) {
   const refreshEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextPracticeSessions, nextTournaments, nextProfile, nextRatingHistory, nextCalendarEvents] = await Promise.all([
+      const [nextPracticeSessions, nextTournaments, nextProfile, nextRatingHistory, nextLadder, nextCalendarEvents] = await Promise.all([
         api.listMemberPracticeSessions(),
         api.listMemberTournaments(),
         api.getMemberProfile(),
         api.getMemberRatingHistory(),
+        api.listMemberLadder(),
         api.listCalendar()
       ]);
       setPracticeSessions(nextPracticeSessions);
       setTournaments(nextTournaments);
       setProfile(nextProfile);
       setRatingHistory(nextRatingHistory);
+      setLadder(nextLadder);
       setCalendarEvents(nextCalendarEvents);
     } catch (error) {
       setNotice({ type: 'error', text: errorMessage(error) });
@@ -320,9 +323,33 @@ function MemberApp({ account, onSignOut }) {
           <EventSchedule title="Upcoming practices" events={practiceSessions} kind="practice" signingUpFor={signingUpFor} onSignUp={signUp} />
           <EventSchedule title="Upcoming tournaments" events={tournaments} kind="tournament" signingUpFor={signingUpFor} onSignUp={signUp} />
         </section>
+        <MemberLadder players={ladder} currentPlayerId={profile?.id} />
         <section className="member-calendar"><CalendarView events={calendarEvents} compact /></section>
       </main>
     </div>
+  );
+}
+
+function MemberLadder({ players, currentPlayerId }) {
+  const rankedPlayers = byRating(players);
+
+  return (
+    <section className="panel member-ladder-panel">
+      <div className="panel-heading">
+        <div><p className="eyebrow">Club competition</p><h3>Global ladder</h3></div>
+        <span className="count-chip">{rankedPlayers.length} active</span>
+      </div>
+      <p className="form-hint">Rankings are read-only. Club administrators manage dues and ladder membership.</p>
+      {rankedPlayers.length ? <ol className="member-ladder-list">{rankedPlayers.map((player, index) => {
+        const isCurrentMember = String(player.id) === String(currentPlayerId);
+        return <li className={isCurrentMember ? 'is-current-member' : ''} key={player.id}>
+          <span className={`rank ${index < 3 ? `rank-${index + 1}` : ''}`}>{index + 1}</span>
+          <span className="avatar" aria-hidden="true">{player.displayName.slice(0, 1).toUpperCase()}</span>
+          <span className="member-ladder-name"><strong>{player.displayName}</strong>{isCurrentMember && <small>Your position</small>}</span>
+          <span className="member-ladder-rating">{playerRatingLabel(player)}</span>
+        </li>;
+      })}</ol> : <EmptyState compact text="The club ladder will appear as members are added." />}
+    </section>
   );
 }
 

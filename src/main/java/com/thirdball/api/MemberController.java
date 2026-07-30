@@ -1,12 +1,14 @@
 package com.thirdball.api;
 
 import com.thirdball.api.response.PracticeSessionResponse;
+import com.thirdball.api.response.LadderPlayerResponse;
 import com.thirdball.api.response.PlayerResponse;
 import com.thirdball.api.response.RatingHistoryPointResponse;
 import com.thirdball.api.response.TournamentResponse;
 import com.thirdball.api.request.UpdateMemberProfileRequest;
 import com.thirdball.domain.Player;
 import com.thirdball.service.AuthenticationService;
+import com.thirdball.service.MemberLadderService;
 import com.thirdball.service.PracticeSessionService;
 import com.thirdball.service.MemberRatingHistoryService;
 import com.thirdball.service.TournamentService;
@@ -32,15 +34,18 @@ public class MemberController {
     private final PracticeSessionService practiceSessionService;
     private final TournamentService tournamentService;
     private final MemberRatingHistoryService memberRatingHistoryService;
+    private final MemberLadderService memberLadderService;
 
     public MemberController(AuthenticationService authenticationService,
                             PracticeSessionService practiceSessionService,
                             TournamentService tournamentService,
-                            MemberRatingHistoryService memberRatingHistoryService) {
+                            MemberRatingHistoryService memberRatingHistoryService,
+                            MemberLadderService memberLadderService) {
         this.authenticationService = authenticationService;
         this.practiceSessionService = practiceSessionService;
         this.tournamentService = tournamentService;
         this.memberRatingHistoryService = memberRatingHistoryService;
+        this.memberLadderService = memberLadderService;
     }
 
     @GetMapping("/practice-sessions")
@@ -67,6 +72,11 @@ public class MemberController {
     @GetMapping("/rating-history")
     public List<RatingHistoryPointResponse> ratingHistory(Authentication authentication) {
         return memberRatingHistoryService.listFor(authenticationService.currentMemberPlayer(authentication));
+    }
+
+    @GetMapping("/ladder")
+    public List<LadderPlayerResponse> ladder() {
+        return memberLadderService.list();
     }
 
     @PostMapping("/practice-sessions/{sessionId}/signup")

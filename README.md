@@ -184,6 +184,7 @@ Flyway migration `V6` adds a `club_users` account table with a unique email, BCr
 | `GET /api/member/tournaments` | MEMBER | List upcoming tournaments. |
 | `GET /api/member/profile` / `PUT /api/member/profile` | MEMBER | Read or update graduation year, skill level, and phone number. |
 | `GET /api/member/rating-history` | MEMBER | Read the member's chart-ready rating series from completed result snapshots. |
+| `GET /api/member/ladder` | MEMBER | Read the active global ladder, limited to rank, player name, and rating information. |
 | `POST /api/member/practice-sessions/{id}/signup` | MEMBER | Register the authenticated member for practice. |
 | `POST /api/member/tournaments/{id}/signup` | MEMBER | Register the authenticated member for a tournament. |
 | `PUT /api/players/{id}/rating` | ADMIN | Correct a player's rating and mark them established. |
