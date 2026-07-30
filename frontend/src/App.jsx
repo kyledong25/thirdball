@@ -304,8 +304,7 @@ function AuthenticationGate({ onAuthenticated }) {
 
   const isLogin = mode === 'login';
   const isVerification = mode === 'register' && registrationStep === 'verify';
-  const heading = isLogin ? 'Sign in to your club view'
-    : isVerification ? 'Finish creating your member account' : 'Create your member account';
+  const heading = isLogin ? 'Sign in to your club view' : 'Create your member account';
   const description = isLogin
     ? 'Administrators enter the club operations desk. Members see their upcoming events and personal sign-up actions.'
     : isVerification
