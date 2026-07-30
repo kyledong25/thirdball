@@ -6,6 +6,7 @@ import { addDays, byRating, formatDateTime, formatRange, isRatingEstablished, pl
 const navigation = [
   { id: 'dashboard', label: 'Aggie Overview' },
   { id: 'calendar', label: 'Club Calendar' },
+  { id: 'updates', label: 'Club Updates' },
   { id: 'players', label: 'Aggie Ladder' },
   { id: 'tournaments', label: 'Tournaments' },
   { id: 'practice', label: 'Practice Nights' }
@@ -16,6 +17,7 @@ const memberNavigation = [
   { id: 'results', label: 'Report results', tone: 'results' },
   { id: 'ladder', label: 'Global ladder', tone: 'players' },
   { id: 'events', label: 'Events', tone: 'practice' },
+  { id: 'updates', label: 'Club updates', tone: 'updates' },
   { id: 'calendar', label: 'Club calendar', tone: 'calendar' }
 ];
 
@@ -35,6 +37,10 @@ const memberSidebarNotes = {
   events: {
     title: 'See you at the table.',
     text: 'Sign up for practices and tournaments so the club can plan every session.'
+  },
+  updates: {
+    title: 'Club pulse.',
+    text: 'Read club announcements and send feedback directly to the officer team.'
   },
   calendar: {
     title: 'Plan your next rally.',
@@ -80,24 +86,30 @@ function AdminApp({ account, onSignOut }) {
   const [tournaments, setTournaments] = useState([]);
   const [practiceSessions, setPracticeSessions] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [feedback, setFeedback] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
 
   const refreshData = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextPlayers, nextMatches, nextTournaments, nextSessions, nextCalendarEvents] = await Promise.all([
+      const [nextPlayers, nextMatches, nextTournaments, nextSessions, nextCalendarEvents, nextAnnouncements, nextFeedback] = await Promise.all([
         api.listPlayers(),
         api.listMatches(),
         api.listTournaments(),
         api.listPracticeSessions(),
-        api.listCalendar()
+        api.listCalendar(),
+        api.listAnnouncements(),
+        api.listFeedback()
       ]);
       setPlayers(nextPlayers);
       setMatches(nextMatches);
       setTournaments(nextTournaments);
       setPracticeSessions(nextSessions);
       setCalendarEvents(nextCalendarEvents);
+      setAnnouncements(nextAnnouncements);
+      setFeedback(nextFeedback);
     } catch (error) {
       setNotice({ type: 'error', text: `Could not load club data: ${errorMessage(error)}` });
     } finally {
@@ -157,7 +169,10 @@ function AdminApp({ account, onSignOut }) {
       'Match result invalidated and the affected ratings were restored.'),
     createPracticeSession: (payload) => perform(() => api.createPracticeSession(payload), 'Practice block published.'),
     registerPracticePlayer: (sessionId, playerId) =>
-      perform(() => api.registerForPractice(sessionId, playerId), 'Player registered for practice.')
+      perform(() => api.registerForPractice(sessionId, playerId), 'Player registered for practice.'),
+    createAnnouncement: (payload) => perform(() => api.createAnnouncement(payload), 'Announcement saved.'),
+    updateAnnouncement: (announcementId, payload) =>
+      perform(() => api.updateAnnouncement(announcementId, payload), 'Announcement updated.')
   }), [perform, refreshData]);
 
   return (
@@ -205,6 +220,7 @@ function AdminApp({ account, onSignOut }) {
           {notice && <Notice notice={notice} onClose={() => setNotice(null)} />}
           {view === 'dashboard' && <Dashboard players={players} tournaments={tournaments} practiceSessions={practiceSessions} onNavigate={setView} />}
           {view === 'calendar' && <CalendarView events={calendarEvents} />}
+          {view === 'updates' && <ClubUpdatesHub announcements={announcements} feedback={feedback} actions={actions} />}
           {view === 'players' && <PlayersAndLadder players={players} matches={matches} actions={actions} />}
           {view === 'tournaments' && <TournamentHub players={players} tournaments={tournaments} actions={actions} />}
           {view === 'practice' && <PracticeHub players={players} practiceSessions={practiceSessions} actions={actions} />}
@@ -272,6 +288,7 @@ function MemberApp({ account, onSignOut }) {
   const [ratingHistory, setRatingHistory] = useState([]);
   const [ladder, setLadder] = useState([]);
   const [matchResultRequests, setMatchResultRequests] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
@@ -283,13 +300,14 @@ function MemberApp({ account, onSignOut }) {
   const refreshEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextPracticeSessions, nextTournaments, nextProfile, nextRatingHistory, nextLadder, nextMatchResultRequests, nextCalendarEvents] = await Promise.all([
+      const [nextPracticeSessions, nextTournaments, nextProfile, nextRatingHistory, nextLadder, nextMatchResultRequests, nextAnnouncements, nextCalendarEvents] = await Promise.all([
         api.listMemberPracticeSessions(),
         api.listMemberTournaments(),
         api.getMemberProfile(),
         api.getMemberRatingHistory(),
         api.listMemberLadder(),
         api.listMemberMatchResults(),
+        api.listMemberAnnouncements(),
         api.listCalendar()
       ]);
       setPracticeSessions(nextPracticeSessions);
@@ -298,6 +316,7 @@ function MemberApp({ account, onSignOut }) {
       setRatingHistory(nextRatingHistory);
       setLadder(nextLadder);
       setMatchResultRequests(nextMatchResultRequests);
+      setAnnouncements(nextAnnouncements);
       setCalendarEvents(nextCalendarEvents);
     } catch (error) {
       setNotice({ type: 'error', text: errorMessage(error) });
@@ -356,6 +375,17 @@ function MemberApp({ account, onSignOut }) {
       setNotice({ type: 'success', text: response === 'agree'
         ? 'Result agreed. The official match and rating update are now recorded.'
         : 'Result request declined. No rating changes were made.' });
+      return result;
+    } catch (error) {
+      setNotice({ type: 'error', text: errorMessage(error) });
+      return null;
+    }
+  }
+
+  async function submitFeedback(payload) {
+    try {
+      const result = await api.submitFeedback(payload);
+      setNotice({ type: 'success', text: 'Thanks—your feedback was sent to the club officers.' });
       return result;
     } catch (error) {
       setNotice({ type: 'error', text: errorMessage(error) });
@@ -423,6 +453,12 @@ function MemberApp({ account, onSignOut }) {
               <EventSchedule title="Upcoming tournaments" events={tournaments} kind="tournament" signingUpFor={signingUpFor} onSignUp={signUp} />
             </section>
           </>}
+          {view === 'updates' && <>
+            <PageIntro eyebrow="Club communication" title="Club updates and feedback">
+              Stay current on announcements, then send questions or ideas directly to the officer team.
+            </PageIntro>
+            <MemberClubUpdates announcements={announcements} onSubmitFeedback={submitFeedback} />
+          </>}
           {view === 'calendar' && <>
             <PageIntro eyebrow="Club schedule" title="Global calendar">
               See every upcoming practice and tournament in one place.
@@ -432,6 +468,138 @@ function MemberApp({ account, onSignOut }) {
         </main>
       </div>
     </div>
+  );
+}
+
+function ClubUpdatesHub({ announcements, feedback, actions }) {
+  return (
+    <>
+      <PageIntro eyebrow="Club communication" title="Announcements and member feedback">
+        Publish club updates, keep drafts private, and review the feedback members send from their dashboard.
+      </PageIntro>
+      <section className="admin-updates-workspace">
+        <AnnouncementManager announcements={announcements} onCreate={actions.createAnnouncement} onUpdate={actions.updateAnnouncement} />
+        <FeedbackInbox feedback={feedback} />
+      </section>
+    </>
+  );
+}
+
+function MemberClubUpdates({ announcements, onSubmitFeedback }) {
+  return (
+    <section className="member-updates-workspace">
+      <AnnouncementFeed announcements={announcements} />
+      <FeedbackForm onSubmit={onSubmitFeedback} />
+    </section>
+  );
+}
+
+function AnnouncementFeed({ announcements }) {
+  return (
+    <section className="panel announcement-feed">
+      <div className="panel-heading"><div><p className="eyebrow">From the officer team</p><h3>Club announcements</h3></div><span className="count-chip">{announcements.length} live</span></div>
+      {announcements.length ? <div className="announcement-list">{announcements.map((announcement) => (
+        <article className="announcement-item" key={announcement.id}>
+          <p className="eyebrow">{formatDateTime(announcement.publishedAt || announcement.createdAt)}</p>
+          <h4>{announcement.title}</h4>
+          <p>{announcement.body}</p>
+        </article>
+      ))}</div> : <EmptyState compact text="The officer team has not posted any announcements yet." />}
+    </section>
+  );
+}
+
+function FeedbackForm({ onSubmit }) {
+  const [form, setForm] = useState({ subject: '', message: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    setSubmitting(true);
+    const result = await onSubmit(form);
+    if (result) setForm({ subject: '', message: '' });
+    setSubmitting(false);
+  }
+
+  return (
+    <section className="panel feedback-form">
+      <div className="panel-heading"><div><p className="eyebrow">Member voice</p><h3>Send feedback</h3></div></div>
+      <p className="form-hint">Questions, ideas, and concerns are shared with club administrators along with your club name.</p>
+      <form onSubmit={submit}>
+        <label>Subject<input required maxLength="150" value={form.subject} onChange={(event) => setForm({ ...form, subject: event.target.value })} placeholder="Practice suggestion" /></label>
+        <label>Message<textarea required maxLength="4000" rows="6" value={form.message} onChange={(event) => setForm({ ...form, message: event.target.value })} placeholder="What would make the club better?" /></label>
+        <button className="button button-primary" disabled={submitting}>{submitting ? 'Sending…' : 'Send feedback'}</button>
+      </form>
+    </section>
+  );
+}
+
+function AnnouncementManager({ announcements, onCreate, onUpdate }) {
+  const [form, setForm] = useState({ title: '', body: '', published: true });
+  const [creating, setCreating] = useState(false);
+
+  async function create(event) {
+    event.preventDefault();
+    setCreating(true);
+    const result = await onCreate(form);
+    if (result) setForm({ title: '', body: '', published: true });
+    setCreating(false);
+  }
+
+  return (
+    <section className="panel announcement-manager">
+      <div className="panel-heading"><div><p className="eyebrow">Administrator communication</p><h3>Announcements</h3></div><span className="count-chip">{announcements.length} total</span></div>
+      <form className="announcement-create-form" onSubmit={create}>
+        <label>Title<input required maxLength="150" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Thursday practice reminder" /></label>
+        <label>Message<textarea required maxLength="4000" rows="4" value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} placeholder="Share a club update with members." /></label>
+        <label className="checkbox-label"><input type="checkbox" checked={form.published} onChange={(event) => setForm({ ...form, published: event.target.checked })} />Publish for members now</label>
+        <button className="button button-primary" disabled={creating}>{creating ? 'Saving…' : 'Create announcement'}</button>
+      </form>
+      <div className="announcement-admin-list">
+        {announcements.map((announcement) => <AnnouncementEditor announcement={announcement} onUpdate={onUpdate} key={announcement.id} />)}
+      </div>
+    </section>
+  );
+}
+
+function AnnouncementEditor({ announcement, onUpdate }) {
+  const [draft, setDraft] = useState({ title: announcement.title, body: announcement.body, published: announcement.published });
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft({ title: announcement.title, body: announcement.body, published: announcement.published });
+  }, [announcement]);
+
+  async function save(event) {
+    event.preventDefault();
+    setSaving(true);
+    const result = await onUpdate(announcement.id, draft);
+    if (result) setEditing(false);
+    setSaving(false);
+  }
+
+  return <article className={`announcement-admin-item ${announcement.published ? 'is-published' : 'is-draft'}`}>
+    {editing ? <form onSubmit={save}>
+      <label>Title<input required maxLength="150" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></label>
+      <label>Message<textarea required maxLength="4000" rows="4" value={draft.body} onChange={(event) => setDraft({ ...draft, body: event.target.value })} /></label>
+      <label className="checkbox-label"><input type="checkbox" checked={draft.published} onChange={(event) => setDraft({ ...draft, published: event.target.checked })} />Published for members</label>
+      <div className="inline-actions"><button className="button button-primary" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button><button type="button" className="text-button" onClick={() => setEditing(false)}>Cancel</button></div>
+    </form> : <>
+      <div><p className="eyebrow">{announcement.published ? 'Published' : 'Draft'} · {formatDateTime(announcement.publishedAt || announcement.createdAt)}</p><h4>{announcement.title}</h4><p>{announcement.body}</p></div>
+      <button className="text-button" onClick={() => setEditing(true)}>Edit announcement</button>
+    </>}
+  </article>;
+}
+
+function FeedbackInbox({ feedback }) {
+  return (
+    <section className="panel feedback-inbox">
+      <div className="panel-heading"><div><p className="eyebrow">Member voice</p><h3>Feedback inbox</h3></div><span className="count-chip">{feedback.length} received</span></div>
+      {feedback.length ? <div className="feedback-list">{feedback.map((item) => <article className="feedback-item" key={item.id}>
+        <div><p className="eyebrow">{item.playerName} · {formatDateTime(item.submittedAt)}</p><h4>{item.subject}</h4><p>{item.message}</p></div>
+      </article>)}</div> : <EmptyState compact text="Member feedback will appear here when it is submitted." />}
+    </section>
   );
 }
 

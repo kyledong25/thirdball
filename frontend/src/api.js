@@ -51,6 +51,12 @@ export const api = {
   updateDuesStatus: (playerId, duesPaid) =>
     client.put(`/players/${playerId}/dues`, { duesPaid }).then(({ data }) => data),
 
+  listAnnouncements: () => client.get('/announcements').then(({ data }) => data),
+  createAnnouncement: (payload) => client.post('/announcements', payload).then(({ data }) => data),
+  updateAnnouncement: (announcementId, payload) =>
+    client.put(`/announcements/${announcementId}`, payload).then(({ data }) => data),
+  listFeedback: () => client.get('/feedback').then(({ data }) => data),
+
   listTournaments: () => client.get('/tournaments').then(({ data }) => data),
   createTournament: (payload) => client.post('/tournaments', payload).then(({ data }) => data),
   registerForTournament: (tournamentId, playerId) =>
@@ -82,6 +88,8 @@ export const api = {
   proposeMemberMatchResult: (payload) => client.post('/member/match-results', payload).then(({ data }) => data),
   agreeMemberMatchResult: (proposalId) => client.post(`/member/match-results/${proposalId}/agree`).then(({ data }) => data),
   declineMemberMatchResult: (proposalId) => client.post(`/member/match-results/${proposalId}/decline`).then(({ data }) => data),
+  listMemberAnnouncements: () => client.get('/member/announcements').then(({ data }) => data),
+  submitFeedback: (payload) => client.post('/member/feedback', payload).then(({ data }) => data),
   updateMemberProfile: (payload) => client.put('/member/profile', payload).then(({ data }) => data),
   signUpForPractice: (sessionId) => client.post(`/member/practice-sessions/${sessionId}/signup`).then(({ data }) => data),
   signUpForTournament: (tournamentId) => client.post(`/member/tournaments/${tournamentId}/signup`).then(({ data }) => data)

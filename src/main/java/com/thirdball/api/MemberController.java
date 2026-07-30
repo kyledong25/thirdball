@@ -1,16 +1,21 @@
 package com.thirdball.api;
 
 import com.thirdball.api.response.PracticeSessionResponse;
+import com.thirdball.api.response.AnnouncementResponse;
 import com.thirdball.api.response.LadderPlayerResponse;
 import com.thirdball.api.response.MemberMatchResultProposalResponse;
+import com.thirdball.api.response.MemberFeedbackResponse;
 import com.thirdball.api.response.PlayerResponse;
 import com.thirdball.api.response.RatingHistoryPointResponse;
 import com.thirdball.api.response.TournamentResponse;
 import com.thirdball.api.request.UpdateMemberProfileRequest;
 import com.thirdball.api.request.ProposeMemberMatchResultRequest;
+import com.thirdball.api.request.SubmitFeedbackRequest;
 import com.thirdball.domain.Player;
 import com.thirdball.service.AuthenticationService;
+import com.thirdball.service.AnnouncementService;
 import com.thirdball.service.MemberLadderService;
+import com.thirdball.service.MemberFeedbackService;
 import com.thirdball.service.MemberMatchResultService;
 import com.thirdball.service.PracticeSessionService;
 import com.thirdball.service.MemberRatingHistoryService;
@@ -41,19 +46,25 @@ public class MemberController {
     private final MemberRatingHistoryService memberRatingHistoryService;
     private final MemberLadderService memberLadderService;
     private final MemberMatchResultService memberMatchResultService;
+    private final AnnouncementService announcementService;
+    private final MemberFeedbackService memberFeedbackService;
 
     public MemberController(AuthenticationService authenticationService,
                             PracticeSessionService practiceSessionService,
                             TournamentService tournamentService,
                             MemberRatingHistoryService memberRatingHistoryService,
                             MemberLadderService memberLadderService,
-                            MemberMatchResultService memberMatchResultService) {
+                            MemberMatchResultService memberMatchResultService,
+                            AnnouncementService announcementService,
+                            MemberFeedbackService memberFeedbackService) {
         this.authenticationService = authenticationService;
         this.practiceSessionService = practiceSessionService;
         this.tournamentService = tournamentService;
         this.memberRatingHistoryService = memberRatingHistoryService;
         this.memberLadderService = memberLadderService;
         this.memberMatchResultService = memberMatchResultService;
+        this.announcementService = announcementService;
+        this.memberFeedbackService = memberFeedbackService;
     }
 
     @GetMapping("/practice-sessions")
@@ -85,6 +96,18 @@ public class MemberController {
     @GetMapping("/ladder")
     public List<LadderPlayerResponse> ladder() {
         return memberLadderService.list();
+    }
+
+    @GetMapping("/announcements")
+    public List<AnnouncementResponse> announcements() {
+        return announcementService.listPublished();
+    }
+
+    @PostMapping("/feedback")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MemberFeedbackResponse submitFeedback(@Valid @RequestBody SubmitFeedbackRequest request,
+                                                  Authentication authentication) {
+        return memberFeedbackService.submit(authenticationService.currentMemberPlayer(authentication), request);
     }
 
     @GetMapping("/match-results")

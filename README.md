@@ -9,7 +9,7 @@
 ## Highlights
 
 - **USATT rating ladder:** New players complete a five-match provisional phase before receiving a rating; established-player results follow the fixed USATT point-exchange chart, retain before/after ratings, and can be safely invalidated by an administrator.
-- **Role-based dashboards:** Administrators manage the ladder, dues, events, generated brackets, and result review; members maintain their own profile, view rating progress, sign up for club events, and mutually confirm ladder results.
+- **Role-based dashboards:** Administrators manage the ladder, dues, events, generated brackets, announcements, feedback, and result review; members maintain their own profile, view rating progress, sign up for club events, mutually confirm ladder results, and communicate with club officers.
 - **Tournament desk:** Register the field, generate a rating-seeded single-elimination bracket with automatic byes, record results, and advance winners automatically.
 - **Practice operations and global calendar:** Publish single- or multi-day blocks, enforce capacity, and show one combined schedule of practices and tournaments.
 - **Built for a real club:** PostgreSQL transactions and pessimistic locks protect rating updates and capacity checks when many members act at once.
@@ -185,6 +185,8 @@ Flyway migration `V6` adds a `club_users` account table with a unique email, BCr
 | `GET /api/member/profile` / `PUT /api/member/profile` | MEMBER | Read or update graduation year, skill level, and phone number. |
 | `GET /api/member/rating-history` | MEMBER | Read the member's chart-ready rating series from completed result snapshots. |
 | `GET /api/member/ladder` | MEMBER | Read the active global ladder, limited to rank, player name, and rating information. |
+| `GET /api/member/announcements` | MEMBER | Read published club announcements. |
+| `POST /api/member/feedback` | MEMBER | Send feedback to the club's administrator inbox. |
 | `GET`, `POST /api/member/match-results` | MEMBER | Read personal result requests or send a score report to an opponent for confirmation. |
 | `POST /api/member/match-results/{id}/agree` / `decline` | MEMBER | The named opponent accepts to create the rated official match, or declines the request. |
 | `POST /api/member/practice-sessions/{id}/signup` | MEMBER | Register the authenticated member for practice. |
@@ -194,6 +196,8 @@ Flyway migration `V6` adds a `club_users` account table with a unique email, BCr
 | `POST /api/players/{id}/remove-from-ladder` | ADMIN | Soft-remove a player from active ladder and event operations while retaining history. |
 | `POST /api/matches/{id}/invalidate` | ADMIN | Cancel the newest completed result for its players and restore their pre-match ratings. |
 | `POST /api/tournaments/{id}/generate-bracket` | ADMIN | Lock registration and build a rating-seeded single-elimination tree. |
+| `GET`, `POST`, `PUT /api/announcements` | ADMIN | List, publish, edit, or save draft club announcements. |
+| `GET /api/feedback` | ADMIN | View feedback submitted from member accounts. |
 | Existing `/api/players`, `/api/matches`, `/api/tournaments`, and `/api/practice-sessions` routes | ADMIN | Club operations dashboard. |
 
 The web client uses HTTP Basic authentication over the existing HTTPS deployment and keeps the authorization value only in browser session storage. Configure the first administrator through Render's environment variables before deploying. After the first `ADMIN` account is created, the bootstrap password is ignored.
