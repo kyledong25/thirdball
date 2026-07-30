@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, errorMessage } from './api';
+import clubLogo from './assets/tamu-table-tennis-club-logo.webp';
 import { addDays, byRating, formatDateTime, formatRange, toDateTimeInput, toIso } from './utils';
 
 const navigation = [
@@ -80,7 +81,9 @@ function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand" aria-label="TAMU Table Tennis Club home">
-          <span className="brand-mark" aria-hidden="true">TT</span>
+          <span className="brand-logo">
+            <img src={clubLogo} alt="Texas A&M University Table Tennis Club logo" />
+          </span>
           <div>
             <p className="eyebrow">Texas A&amp;M University · College Station</p>
             <h1>TAMU Table Tennis</h1>
