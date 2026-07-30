@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/matches")
@@ -30,6 +31,9 @@ public class MatchController {
         return matchService.schedule(request);
     }
 
+    @GetMapping
+    public List<MatchResponse> list() { return matchService.list(); }
+
     @GetMapping("/{matchId}")
     public MatchResponse get(@PathVariable Long matchId) { return matchService.get(matchId); }
 
@@ -37,5 +41,10 @@ public class MatchController {
     public MatchResponse recordResult(@PathVariable Long matchId,
                                       @Valid @RequestBody SubmitMatchResultRequest request) {
         return matchService.recordResult(matchId, request);
+    }
+
+    @PostMapping("/{matchId}/invalidate")
+    public MatchResponse invalidateResult(@PathVariable Long matchId) {
+        return matchService.invalidateResult(matchId);
     }
 }

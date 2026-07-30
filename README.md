@@ -6,7 +6,7 @@
 
 ## Highlights
 
-- **USATT rating ladder:** New players complete a five-match provisional phase before receiving a rating; established-player results follow the fixed USATT point-exchange chart and retain an audit trail of before/after ratings.
+- **USATT rating ladder:** New players complete a five-match provisional phase before receiving a rating; established-player results follow the fixed USATT point-exchange chart, retain before/after ratings, and can be safely invalidated by an administrator.
 - **Tournament desk:** Create events, register players, place matches in rounds, record results, and view an always-current single-elimination bracket.
 - **Practice operations:** Publish single- or multi-day blocks, enforce capacity, and handle player registration.
 - **Built for a real club:** PostgreSQL transactions and pessimistic locks protect rating updates and capacity checks when many members act at once.
@@ -117,9 +117,9 @@ Supabase recommends a direct connection for migrations where IPv6 is available, 
 
 | Capability | Routes |
 | --- | --- |
-| Players | `POST`, `GET` `/api/players` |
+| Players | `POST`, `GET` `/api/players`; `POST /api/players/{id}/remove-from-ladder` |
 | Tournaments | `POST`, `GET` `/api/tournaments`; `POST /api/tournaments/{id}/registrations` |
-| Matches / ladder results | `POST /api/matches`; `GET /api/matches/{id}`; `POST /api/matches/{id}/result` |
+| Matches / ladder results | `POST`, `GET` `/api/matches`; `GET /api/matches/{id}`; `POST /api/matches/{id}/result`; `POST /api/matches/{id}/invalidate` |
 | Bracket data | `GET /api/tournaments/{id}/matches` |
 | Practice blocks | `POST`, `GET` `/api/practice-sessions`; `POST /api/practice-sessions/{id}/registrations` |
 
@@ -182,6 +182,8 @@ Flyway migration `V6` adds a `club_users` account table with a unique email, BCr
 | `POST /api/member/practice-sessions/{id}/signup` | MEMBER | Register the authenticated member for practice. |
 | `POST /api/member/tournaments/{id}/signup` | MEMBER | Register the authenticated member for a tournament. |
 | `PUT /api/players/{id}/rating` | ADMIN | Correct a player's rating and mark them established. |
+| `POST /api/players/{id}/remove-from-ladder` | ADMIN | Soft-remove a player from active ladder and event operations while retaining history. |
+| `POST /api/matches/{id}/invalidate` | ADMIN | Cancel the newest completed result for its players and restore their pre-match ratings. |
 | Existing `/api/players`, `/api/matches`, `/api/tournaments`, and `/api/practice-sessions` routes | ADMIN | Club operations dashboard. |
 
 The web client uses HTTP Basic authentication over the existing HTTPS deployment and keeps the authorization value only in browser session storage. Configure the first administrator through Render's environment variables before deploying. After the first `ADMIN` account is created, the bootstrap password is ignored.

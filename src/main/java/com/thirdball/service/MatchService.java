@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -112,6 +113,55 @@ public class MatchService {
         return MatchResponse.from(match);
     }
 
+    /**
+     * Invalidates a completed result and restores the affected players to the
+     * exact ratings they had before the result. To avoid corrupting a later
+     * rating change, only the most recent completed result for both players can
+     * be invalidated. The original score and rating snapshots remain stored on
+     * the cancelled match as an audit record.
+     */
+    @Transactional
+    public MatchResponse invalidateResult(Long matchId) {
+        Match match = matchRepository.findByIdForUpdate(matchId)
+                .orElseThrow(() -> new NotFoundException("Match " + matchId + " was not found"));
+        if (match.getStatus() != MatchStatus.COMPLETED || match.getCompletedAt() == null) {
+            throw new ConflictException("Only a completed match result can be invalidated");
+        }
+
+        Long playerOneId = match.getPlayerOne().getId();
+        Long playerTwoId = match.getPlayerTwo().getId();
+        Player lowerIdPlayer = playerRepository.findByIdForUpdate(Math.min(playerOneId, playerTwoId))
+                .orElseThrow(() -> new NotFoundException("A match player was not found"));
+        Player higherIdPlayer = playerRepository.findByIdForUpdate(Math.max(playerOneId, playerTwoId))
+                .orElseThrow(() -> new NotFoundException("A match player was not found"));
+        Player playerOne = lowerIdPlayer.getId().equals(playerOneId) ? lowerIdPlayer : higherIdPlayer;
+        Player playerTwo = lowerIdPlayer.getId().equals(playerTwoId) ? lowerIdPlayer : higherIdPlayer;
+
+        if (matchRepository.existsCompletedMatchAfterForEitherPlayer(
+                matchId, playerOneId, playerTwoId, match.getCompletedAt(), MatchStatus.COMPLETED)) {
+            throw new ConflictException("This result cannot be invalidated because one of these players has a later completed match. "
+                    + "Invalidate the newer result first or correct the ratings manually.");
+        }
+
+        restoreRatingBeforeMatch(match, playerOne, true);
+        restoreRatingBeforeMatch(match, playerTwo, false);
+        match.setPlayerOne(playerOne);
+        match.setPlayerTwo(playerTwo);
+        match.setStatus(MatchStatus.CANCELLED);
+        return MatchResponse.from(match);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MatchResponse> list() {
+        Comparator<Match> newestFirst = Comparator
+                .comparing(Match::getCompletedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(Match::getId, Comparator.reverseOrder());
+        return matchRepository.findAll().stream()
+                .sorted(newestFirst)
+                .map(MatchResponse::from)
+                .collect(Collectors.toList());
+    }
+
     @Transactional(readOnly = true)
     public MatchResponse get(Long matchId) {
         Match match = matchRepository.findById(matchId)
@@ -138,6 +188,36 @@ public class MatchService {
         playerTwo.setRating(updatedRatings.getPlayer2Rating());
         match.setPlayerOneRatingAfter(playerOne.getRating());
         match.setPlayerTwoRatingAfter(playerTwo.getRating());
+    }
+
+    private void restoreRatingBeforeMatch(Match match, Player player, boolean isPlayerOne) {
+        Integer ratingBefore = isPlayerOne ? match.getPlayerOneRatingBefore() : match.getPlayerTwoRatingBefore();
+        Integer ratingAfter = isPlayerOne ? match.getPlayerOneRatingAfter() : match.getPlayerTwoRatingAfter();
+        if (ratingBefore != null) {
+            if (ratingAfter == null || player.getRating() != ratingAfter) {
+                throw new ConflictException("The player's rating has changed since this result. Correct the rating manually instead.");
+            }
+            player.setRating(ratingBefore);
+            return;
+        }
+
+        rollbackProvisionalResult(player, ratingAfter);
+    }
+
+    private void rollbackProvisionalResult(Player player, Integer ratingAfter) {
+        if (player.getProvisionalMatchCount() < 1) {
+            throw new ConflictException("The provisional result history is no longer consistent for this player");
+        }
+        if (ratingAfter != null) {
+            if (!player.isRatingEstablished() || player.getRating() != ratingAfter) {
+                throw new ConflictException("The player's rating has changed since this provisional result. Correct the rating manually instead.");
+            }
+            player.setRating(Player.UNRATED_RATING);
+            player.setRatingEstablished(false);
+        } else if (player.isRatingEstablished()) {
+            throw new ConflictException("The player has since received a rating. Correct the rating manually instead.");
+        }
+        player.setProvisionalMatchCount(player.getProvisionalMatchCount() - 1);
     }
 
     /**

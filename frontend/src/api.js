@@ -44,6 +44,8 @@ export const api = {
 
   listPlayers: () => client.get('/players').then(({ data }) => data),
   createPlayer: (payload) => client.post('/players', payload).then(({ data }) => data),
+  removePlayerFromLadder: (playerId) =>
+    client.post(`/players/${playerId}/remove-from-ladder`).then(({ data }) => data),
   updatePlayerRating: (playerId, rating) =>
     client.put(`/players/${playerId}/rating`, { rating }).then(({ data }) => data),
 
@@ -55,8 +57,10 @@ export const api = {
     client.get(`/tournaments/${tournamentId}/matches`).then(({ data }) => data),
 
   createMatch: (payload) => client.post('/matches', payload).then(({ data }) => data),
+  listMatches: () => client.get('/matches').then(({ data }) => data),
   submitMatchResult: (matchId, payload) =>
     client.post(`/matches/${matchId}/result`, payload).then(({ data }) => data),
+  invalidateMatch: (matchId) => client.post(`/matches/${matchId}/invalidate`).then(({ data }) => data),
 
   listPracticeSessions: () => client.get('/practice-sessions').then(({ data }) => data),
   createPracticeSession: (payload) => client.post('/practice-sessions', payload).then(({ data }) => data),

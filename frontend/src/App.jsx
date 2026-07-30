@@ -44,6 +44,7 @@ function App() {
 function AdminApp({ account, onSignOut }) {
   const [view, setView] = useState('dashboard');
   const [players, setPlayers] = useState([]);
+  const [matches, setMatches] = useState([]);
   const [tournaments, setTournaments] = useState([]);
   const [practiceSessions, setPracticeSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,12 +53,14 @@ function AdminApp({ account, onSignOut }) {
   const refreshData = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextPlayers, nextTournaments, nextSessions] = await Promise.all([
+      const [nextPlayers, nextMatches, nextTournaments, nextSessions] = await Promise.all([
         api.listPlayers(),
+        api.listMatches(),
         api.listTournaments(),
         api.listPracticeSessions()
       ]);
       setPlayers(nextPlayers);
+      setMatches(nextMatches);
       setTournaments(nextTournaments);
       setPracticeSessions(nextSessions);
     } catch (error) {
@@ -88,6 +91,9 @@ function AdminApp({ account, onSignOut }) {
     updatePlayerRating: (playerId, rating) => perform(
       () => api.updatePlayerRating(playerId, rating),
       'Member rating updated. The player is now established.'),
+    removePlayerFromLadder: (playerId) => perform(
+      () => api.removePlayerFromLadder(playerId),
+      'Player removed from the active club ladder.'),
     recordLadderMatch: async ({ playerOneId, playerTwoId, playerOneScore, playerTwoScore }) => {
       try {
         const match = await api.createMatch({ playerOneId, playerTwoId, roundNumber: 1 });
@@ -106,6 +112,9 @@ function AdminApp({ account, onSignOut }) {
     scheduleTournamentMatch: (payload) => perform(() => api.createMatch(payload), 'Tournament match added to the bracket.'),
     submitTournamentResult: (matchId, scores) =>
       perform(() => api.submitMatchResult(matchId, scores), 'Bracket result recorded and USATT ratings updated.'),
+    invalidateMatch: (matchId) => perform(
+      () => api.invalidateMatch(matchId),
+      'Match result invalidated and the affected ratings were restored.'),
     createPracticeSession: (payload) => perform(() => api.createPracticeSession(payload), 'Practice block published.'),
     registerPracticePlayer: (sessionId, playerId) =>
       perform(() => api.registerForPractice(sessionId, playerId), 'Player registered for practice.')
@@ -155,7 +164,7 @@ function AdminApp({ account, onSignOut }) {
         <main className="content">
           {notice && <Notice notice={notice} onClose={() => setNotice(null)} />}
           {view === 'dashboard' && <Dashboard players={players} tournaments={tournaments} practiceSessions={practiceSessions} onNavigate={setView} />}
-          {view === 'players' && <PlayersAndLadder players={players} actions={actions} />}
+          {view === 'players' && <PlayersAndLadder players={players} matches={matches} actions={actions} />}
           {view === 'tournaments' && <TournamentHub players={players} tournaments={tournaments} actions={actions} />}
           {view === 'practice' && <PracticeHub players={players} practiceSessions={practiceSessions} actions={actions} />}
         </main>
@@ -411,7 +420,7 @@ function StatCard({ value, label, tone }) {
   );
 }
 
-function PlayersAndLadder({ players, actions }) {
+function PlayersAndLadder({ players, matches, actions }) {
   const orderedPlayers = byRating(players);
   return (
     <>
@@ -431,8 +440,9 @@ function PlayersAndLadder({ players, actions }) {
           </div>
           <span className="count-chip">{players.length} players</span>
         </div>
-        {orderedPlayers.length ? <LadderTable players={orderedPlayers} /> : <EmptyState text="Your club roster will appear here after you add the first player." />}
+        {orderedPlayers.length ? <LadderTable players={orderedPlayers} onRemove={actions.removePlayerFromLadder} /> : <EmptyState text="Your club roster will appear here after you add the first player." />}
       </section>
+      <MatchResultReview matches={matches} onInvalidate={actions.invalidateMatch} />
     </>
   );
 }
@@ -560,11 +570,20 @@ function AdminRatingEditor({ players, onSubmit }) {
   );
 }
 
-function LadderTable({ players }) {
+function LadderTable({ players, onRemove }) {
+  const [removingPlayerId, setRemovingPlayerId] = useState('');
+
+  async function removePlayer(player) {
+    if (!window.confirm(`Remove ${player.displayName} from the active club ladder? Their match history will be retained.`)) return;
+    setRemovingPlayerId(String(player.id));
+    await onRemove(player.id);
+    setRemovingPlayerId('');
+  }
+
   return (
     <div className="table-wrap">
       <table>
-        <thead><tr><th>Rank</th><th>Player</th><th>Email</th><th className="right">USATT rating</th><th>Status</th></tr></thead>
+        <thead><tr><th>Rank</th><th>Player</th><th>Email</th><th className="right">USATT rating</th><th>Status</th><th>Action</th></tr></thead>
         <tbody>
           {players.map((player, index) => (
             <tr key={player.id}>
@@ -576,11 +595,44 @@ function LadderTable({ players }) {
                 {!isRatingEstablished(player) && <small>{player.provisionalMatchCount || 0}/5 matches</small>}
               </td>
               <td><span className={`status-pill ${player.active ? 'status-active' : 'status-muted'}`}>{player.active ? 'Active' : 'Inactive'}</span></td>
+              <td><button className="text-button danger-button" disabled={removingPlayerId === String(player.id)} onClick={() => removePlayer(player)}>{removingPlayerId === String(player.id) ? 'Removing…' : 'Remove'}</button></td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function MatchResultReview({ matches, onInvalidate }) {
+  const [invalidatingMatchId, setInvalidatingMatchId] = useState('');
+  const reviewedMatches = matches.filter((match) => match.status === 'COMPLETED' || match.status === 'CANCELLED');
+
+  async function invalidate(match) {
+    if (!window.confirm(`Invalidate the ${match.playerOneName} vs ${match.playerTwoName} result? This restores the ratings from before the match.`)) return;
+    setInvalidatingMatchId(String(match.id));
+    await onInvalidate(match.id);
+    setInvalidatingMatchId('');
+  }
+
+  return (
+    <section className="panel match-review-panel">
+      <div className="panel-heading">
+        <div><p className="eyebrow">Administrator action</p><h3>Match result review</h3></div>
+        <span className="count-chip">{reviewedMatches.length} recorded</span>
+      </div>
+      <p className="form-hint">Invalidate the newest result for its players to restore their pre-match ratings. Older results stay protected until newer results are addressed.</p>
+      {reviewedMatches.length ? <div className="match-review-list">{reviewedMatches.map((match) => {
+        const winnerName = match.winnerId === match.playerOneId ? match.playerOneName : match.playerTwoName;
+        const isInvalidated = match.status === 'CANCELLED';
+        return <article className={`match-review-item ${isInvalidated ? 'is-invalidated' : ''}`} key={match.id}>
+          <div><strong>{match.playerOneName} <span>{match.playerOneScore}–{match.playerTwoScore}</span> {match.playerTwoName}</strong><small>{isInvalidated ? 'Invalidated result' : `${winnerName} won`} · {formatDateTime(match.completedAt)}</small></div>
+          {isInvalidated
+            ? <span className="status-pill status-muted">Invalidated</span>
+            : <button className="text-button danger-button" disabled={invalidatingMatchId === String(match.id)} onClick={() => invalidate(match)}>{invalidatingMatchId === String(match.id) ? 'Invalidating…' : 'Invalidate result'}</button>}
+        </article>;
+      })}</div> : <EmptyState compact text="Completed ladder and tournament results will appear here for administrator review." />}
+    </section>
   );
 }
 
@@ -704,6 +756,12 @@ function TournamentBracket({ tournament, players, actions }) {
     return result;
   }
 
+  async function invalidateResult(matchId) {
+    const result = await actions.invalidateMatch(matchId);
+    if (result) setRefreshIndex((value) => value + 1);
+    return result;
+  }
+
   return (
     <div className="bracket-workspace">
       <BracketMatchForm players={players} onSubmit={schedule} />
@@ -714,7 +772,7 @@ function TournamentBracket({ tournament, players, actions }) {
               <section className="bracket-round" key={roundName}>
                 <h4>{roundName}</h4>
                 <div className="match-stack">
-                  {roundMatches.map((match) => <BracketMatch key={match.id} match={match} onSubmitResult={submitResult} />)}
+                  {roundMatches.map((match) => <BracketMatch key={match.id} match={match} onSubmitResult={submitResult} onInvalidateResult={invalidateResult} />)}
                 </div>
               </section>
             ))}
@@ -752,10 +810,11 @@ function BracketMatchForm({ players, onSubmit }) {
   );
 }
 
-function BracketMatch({ match, onSubmitResult }) {
+function BracketMatch({ match, onSubmitResult, onInvalidateResult }) {
   const [scores, setScores] = useState({ playerOneScore: '', playerTwoScore: '' });
   const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [invalidating, setInvalidating] = useState(false);
   async function submit(event) {
     event.preventDefault();
     setSubmitting(true);
@@ -763,12 +822,20 @@ function BracketMatch({ match, onSubmitResult }) {
     if (result) setEditing(false);
     setSubmitting(false);
   }
+  async function invalidate() {
+    if (!window.confirm(`Invalidate the ${match.playerOneName} vs ${match.playerTwoName} result?`)) return;
+    setInvalidating(true);
+    await onInvalidateResult(match.id);
+    setInvalidating(false);
+  }
   return (
-    <article className={`bracket-match ${match.status === 'COMPLETED' ? 'is-complete' : ''}`}>
+    <article className={`bracket-match ${match.status === 'COMPLETED' ? 'is-complete' : ''} ${match.status === 'CANCELLED' ? 'is-cancelled' : ''}`}>
       <div className={`bracket-player ${match.winnerId === match.playerOneId ? 'is-winner' : ''}`}><span>{match.playerOneName}</span><strong>{match.playerOneScore ?? '—'}</strong></div>
       <div className={`bracket-player ${match.winnerId === match.playerTwoId ? 'is-winner' : ''}`}><span>{match.playerTwoName}</span><strong>{match.playerTwoScore ?? '—'}</strong></div>
       {match.status === 'SCHEDULED' && !editing && <button className="text-button result-button" onClick={() => setEditing(true)}>Enter result</button>}
       {editing && <form className="bracket-score-form" onSubmit={submit}><input required type="number" min="0" value={scores.playerOneScore} onChange={(e) => setScores({ ...scores, playerOneScore: e.target.value })} /><span>–</span><input required type="number" min="0" value={scores.playerTwoScore} onChange={(e) => setScores({ ...scores, playerTwoScore: e.target.value })} /><button disabled={submitting}>{submitting ? '…' : 'Save'}</button></form>}
+      {match.status === 'COMPLETED' && <button className="text-button result-button danger-button" disabled={invalidating} onClick={invalidate}>{invalidating ? 'Invalidating…' : 'Invalidate result'}</button>}
+      {match.status === 'CANCELLED' && <span className="status-pill status-muted bracket-status">Invalidated</span>}
     </article>
   );
 }

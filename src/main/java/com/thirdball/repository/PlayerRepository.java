@@ -7,10 +7,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import javax.persistence.LockModeType;
+import java.util.List;
 import java.util.Optional;
 
 public interface PlayerRepository extends JpaRepository<Player, Long> {
     Optional<Player> findByEmail(String email);
+
+    List<Player> findByActiveTrue();
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from Player p where p.id = :id")

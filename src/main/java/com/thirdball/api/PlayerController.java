@@ -40,4 +40,9 @@ public class PlayerController {
                                        @Valid @RequestBody UpdatePlayerRatingRequest request) {
         return playerService.updateRating(playerId, request);
     }
+
+    @PostMapping("/{playerId}/remove-from-ladder")
+    public PlayerResponse removeFromLadder(@PathVariable Long playerId) {
+        return playerService.removeFromLadder(playerId);
+    }
 }
