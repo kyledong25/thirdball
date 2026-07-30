@@ -41,6 +41,8 @@ export const api = {
   },
   currentUser: () => client.get('/auth/me').then(({ data }) => data),
   registerMember: (payload) => client.post('/auth/register', payload).then(({ data }) => data),
+  verifyEmail: (payload) => client.post('/auth/verify-email', payload).then(({ data }) => data),
+  resendEmailVerification: (payload) => client.post('/auth/resend-verification', payload),
 
   listPlayers: () => client.get('/players').then(({ data }) => data),
   createPlayer: (payload) => client.post('/players', payload).then(({ data }) => data),

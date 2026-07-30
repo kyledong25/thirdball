@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
+import java.time.Instant;
 
 /**
  * Creates the first administrator only when both bootstrap variables are set.
@@ -41,6 +42,8 @@ public class AdminBootstrapConfiguration {
                 administrator.setEmail(email);
                 administrator.setPasswordHash(passwordEncoder.encode(adminPassword));
                 administrator.setRole(ClubRole.ADMIN);
+                administrator.setEmailVerified(true);
+                administrator.setEmailVerifiedAt(Instant.now());
                 playerRepository.findByEmail(email).ifPresent(administrator::setPlayer);
                 clubUserRepository.save(administrator);
             }

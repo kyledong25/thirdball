@@ -15,6 +15,20 @@ spring:
           time_zone: UTC
   flyway:
     enabled: true
+  mail:
+    # Configure these through the MAIL_* environment variables in production.
+    # Local development starts without a mail provider, but registration will
+    # require a reachable SMTP service before a verification email can be sent.
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_STARTTLS_ENABLED:true}
 
 server:
   error:
@@ -29,3 +43,8 @@ app:
     # the same variables through application-prod.properties.
     email: ${BOOTSTRAP_ADMIN_EMAIL:}
     password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+  email:
+    from: ${MAIL_FROM:no-reply@thirdball.local}
+    verification:
+      code-expiration-minutes: ${EMAIL_VERIFICATION_CODE_EXPIRATION_MINUTES:15}
+      resend-cooldown-seconds: ${EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS:60}

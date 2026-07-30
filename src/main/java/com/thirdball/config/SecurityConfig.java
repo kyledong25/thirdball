@@ -44,6 +44,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .authorizeRequests()
                 .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .antMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                .antMatchers(HttpMethod.POST, "/api/auth/verify-email").permitAll()
+                .antMatchers(HttpMethod.POST, "/api/auth/resend-verification").permitAll()
                 .antMatchers("/api/auth/me").authenticated()
                 .antMatchers("/api/calendar").authenticated()
                 .antMatchers("/api/member/**").hasRole("MEMBER")

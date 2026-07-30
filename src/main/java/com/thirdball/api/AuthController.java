@@ -1,7 +1,10 @@
 package com.thirdball.api;
 
 import com.thirdball.api.request.RegisterMemberRequest;
+import com.thirdball.api.request.VerificationEmailRequest;
+import com.thirdball.api.request.VerifyEmailRequest;
 import com.thirdball.api.response.AuthenticatedUserResponse;
+import com.thirdball.api.response.EmailVerificationPendingResponse;
 import com.thirdball.service.AuthenticationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -26,8 +29,19 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public AuthenticatedUserResponse register(@Valid @RequestBody RegisterMemberRequest request) {
+    public EmailVerificationPendingResponse register(@Valid @RequestBody RegisterMemberRequest request) {
         return authenticationService.registerMember(request);
+    }
+
+    @PostMapping("/verify-email")
+    public AuthenticatedUserResponse verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        return authenticationService.verifyEmail(request);
+    }
+
+    @PostMapping("/resend-verification")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void resendVerification(@Valid @RequestBody VerificationEmailRequest request) {
+        authenticationService.resendVerificationCode(request);
     }
 
     @GetMapping("/me")
