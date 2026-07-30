@@ -45,6 +45,9 @@ app:
     password: ${BOOTSTRAP_ADMIN_PASSWORD:}
   email:
     from: ${MAIL_FROM:no-reply@thirdball.local}
+    brevo:
+      # On Render, set BREVO_API_KEY to use Brevo's HTTPS API instead of SMTP.
+      api-key: ${BREVO_API_KEY:}
     verification:
       code-expiration-minutes: ${EMAIL_VERIFICATION_CODE_EXPIRATION_MINUTES:15}
       resend-cooldown-seconds: ${EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS:60}

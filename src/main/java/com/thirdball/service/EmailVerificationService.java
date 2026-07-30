@@ -19,6 +19,7 @@ public class EmailVerificationService {
     private static final int CODE_BOUND = 1_000_000;
 
     private final JavaMailSender mailSender;
+    private final BrevoEmailClient brevoEmailClient;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
     private final String fromAddress;
@@ -26,11 +27,13 @@ public class EmailVerificationService {
     private final long resendCooldownSeconds;
 
     public EmailVerificationService(JavaMailSender mailSender,
+                                    BrevoEmailClient brevoEmailClient,
                                     PasswordEncoder passwordEncoder,
                                     @Value("${app.email.from}") String fromAddress,
                                     @Value("${app.email.verification.code-expiration-minutes}") long expirationMinutes,
                                     @Value("${app.email.verification.resend-cooldown-seconds}") long resendCooldownSeconds) {
         this.mailSender = mailSender;
+        this.brevoEmailClient = brevoEmailClient;
         this.passwordEncoder = passwordEncoder;
         this.fromAddress = fromAddress;
         this.expirationMinutes = expirationMinutes;
@@ -52,6 +55,11 @@ public class EmailVerificationService {
         message.setText("Your TAMU Table Tennis Club verification code is " + code
                 + ". It expires in " + expirationMinutes + " minutes.\n\n"
                 + "If you did not start this signup, you can ignore this email.");
+        if (brevoEmailClient.isConfigured()) {
+            brevoEmailClient.sendPlainText(fromAddress, user.getEmail(), message.getSubject(), message.getText());
+            return;
+        }
+
         try {
             mailSender.send(message);
         } catch (MailException exception) {

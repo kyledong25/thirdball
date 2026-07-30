@@ -217,14 +217,11 @@ Third Ball is configured for a Supabase + Render + Vercel deployment. No databas
    BOOTSTRAP_ADMIN_EMAIL=<administrator-email>
    BOOTSTRAP_ADMIN_PASSWORD=<administrator-password>
    CORS_ALLOWED_ORIGINS=https://<your-vercel-project>.vercel.app
-   MAIL_HOST=<smtp-host>
-   MAIL_PORT=587
-   MAIL_USERNAME=<smtp-username>
-   MAIL_PASSWORD=<smtp-password>
+   BREVO_API_KEY=<Brevo API key>
    MAIL_FROM=no-reply@<your-verified-sending-domain>
    ```
 
-   Get the hostname, connection user, and password from Supabase **Connect**. Use the Session pooler if Render cannot reach the direct connection; convert Supabase's `postgresql://` URI to `jdbc:postgresql://` for `DB_URL`, keeping `sslmode=require`. Configure a transactional email provider's SMTP credentials for the `MAIL_*` variables; `MAIL_FROM` must be an address or domain verified with that provider. Render supplies `PORT`; [`application-prod.properties`](src/main/resources/application-prod.properties) reads it automatically. Optional values are `MAIL_SMTP_AUTH`, `MAIL_STARTTLS_ENABLED`, `EMAIL_VERIFICATION_CODE_EXPIRATION_MINUTES` (default `15`), and `EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS` (default `60`).
+   Get the hostname, connection user, and password from Supabase **Connect**. Use the Session pooler if Render cannot reach the direct connection; convert Supabase's `postgresql://` URI to `jdbc:postgresql://` for `DB_URL`, keeping `sslmode=require`. On Render's free plan, set `BREVO_API_KEY` and a Brevo-verified `MAIL_FROM`; Third Ball then sends verification email over Brevo's HTTPS API rather than blocked SMTP ports. Render supplies `PORT`; [`application-prod.properties`](src/main/resources/application-prod.properties) reads it automatically. The `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, and `MAIL_PASSWORD` variables are retained only for local or paid-host SMTP fallback. Optional values are `MAIL_SMTP_AUTH`, `MAIL_STARTTLS_ENABLED`, `EMAIL_VERIFICATION_CODE_EXPIRATION_MINUTES` (default `15`), and `EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS` (default `60`).
 
 2. On Vercel, set the project root to `frontend`, build with `npm run build`, publish `dist`, and add this build-time environment variable:
 
